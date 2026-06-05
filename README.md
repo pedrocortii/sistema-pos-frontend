@@ -23,7 +23,7 @@ Frontend del sistema POS Web desarrollado para optimizar la gestión comercial d
 1. Clonar el repositorio.
 
 ```bash
-git clone URL_DEL_REPOSITORIO
+git clone https://github.com/pedrocortii/sistema-pos-frontend.git
 ```
 
 2. Ingresar al proyecto.
