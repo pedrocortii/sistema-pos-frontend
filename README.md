@@ -4,6 +4,12 @@
 
 Frontend del sistema POS Web desarrollado para optimizar la gestión comercial de pequeños y medianos negocios. Permitirá administrar ventas, productos, stock, clientes y reportes desde una interfaz web moderna e intuitiva.
 
+## Documentación completa
+
+La documentación detallada del proyecto (decisiones técnicas, módulos, endpoints consumidos) está en el siguiente Google Doc, compartido con el repositorio del backend:
+
+[Documentación del proyecto](https://docs.google.com/document/d/1U9A7sZCXHqEEOIHKMWEZhd4TZFbID6rypjZ4SzBhiS0/edit?usp=sharing)
+
 ## Integrantes
 
 * Corti Pedro Pablo
@@ -13,10 +19,11 @@ Frontend del sistema POS Web desarrollado para optimizar la gestión comercial d
 ## Tecnologías Utilizadas
 
 * React
-* JavaScript
+* Vite
+* Tailwind CSS v4
+* React Router
 * Zustand
-* TanStack Query
-* TailwindCSS
+* Axios
 
 ## Instalación
 
@@ -29,7 +36,7 @@ git clone https://github.com/pedrocortii/sistema-pos-frontend.git
 2. Ingresar al proyecto.
 
 ```bash
-cd pos-web-frontend
+cd sistema-pos-frontend
 ```
 
 3. Instalar dependencias.
@@ -38,16 +45,23 @@ cd pos-web-frontend
 npm install
 ```
 
-4. Ejecutar el proyecto.
+4. Crear un archivo `.env` en la raíz con la siguiente variable:
+
+VITE_API_URL=http://localhost:3000
+
+5. Asegurarse de tener el backend corriendo (ver README del repo sistema-pos-backend).
+
+6. Ejecutar el proyecto.
 
 ```bash
 npm run dev
 ```
 
-## Variables de Entorno
+## Módulos implementados
 
-Actualmente el frontend no requiere variables de entorno obligatorias.
+* **Login**: inicio de sesión conectado al backend (JWT)
+* **Registro**: alta de nuevos clientes (autoservicio)
 
 ## Estado Actual
 
-Proyecto inicializado con React y preparado para comenzar el desarrollo de la interfaz de usuario.
+Frontend en desarrollo. Autenticación (login y registro) funcional. Pendiente: catálogo de productos, carrito de compra, y pantallas de gestión para el personal (productos, stock, ventas).
