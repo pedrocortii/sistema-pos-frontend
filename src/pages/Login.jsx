@@ -23,7 +23,12 @@ function Login() {
         try {
             const respuesta = await http.post("/usuarios/login", { email, contrasena });
             iniciarSesion(respuesta.data.token, respuesta.data.usuario);
-            navegar("/dashboard");
+
+            if (respuesta.data.usuario.rol === "Cliente") {
+                navegar("/catalogo");
+            } else {
+                navegar("/dashboard");
+            }
         } catch (error) {
             const mensaje = error.response && error.response.data && error.response.data.mensaje
                 ? error.response.data.mensaje
