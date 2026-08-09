@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useCarritoStore } from "./carritoStore";
 
 const tokenGuardado = localStorage.getItem("token");
 const usuarioGuardado = localStorage.getItem("usuario");
@@ -17,6 +18,7 @@ export const useAuthStore = create(function (set) {
         cerrarSesion: function () {
             localStorage.removeItem("token");
             localStorage.removeItem("usuario");
+            useCarritoStore.getState().vaciarCarrito();
             set({ token: null, usuario: null });
         }
     };
