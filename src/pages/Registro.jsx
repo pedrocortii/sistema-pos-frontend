@@ -8,7 +8,6 @@ function Registro() {
     const [apellido, setApellido] = useState("");
     const [email, setEmail] = useState("");
     const [contrasena, setContrasena] = useState("");
-    const [rol, setRol] = useState("Cajero");
     const [error, setError] = useState("");
     const [cargando, setCargando] = useState(false);
 
