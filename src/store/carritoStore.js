@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-export const useCarritoStore = create(function (set, get) {
+export const useCarritoStore = create(persist(function (set, get) {
     return {
         items: [],
 
@@ -75,4 +76,7 @@ export const useCarritoStore = create(function (set, get) {
             }, 0);
         }
     };
-});
+}, {
+    name: "carrito",
+    version: 1
+}));
