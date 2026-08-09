@@ -80,7 +80,10 @@ function ProductoDetalle() {
                             </p>
                         ) : (
                             <>
-                                <div className="flex items-center gap-4 mt-6">
+                                <p className="font-mono-ticket text-xs text-ink/60 mt-6">
+                                    Stock disponible: {producto.stock} unidades
+                                </p>
+                                <div className="flex items-center gap-4 mt-3">
                                     <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
                                         Cantidad
                                     </label>
@@ -95,8 +98,9 @@ function ProductoDetalle() {
                                             {cantidad}
                                         </span>
                                         <button
-                                            onClick={function () { setCantidad(function (actual) { return actual + 1; }); }}
-                                            className="w-8 h-8 border border-line text-ink flex items-center justify-center"
+                                            onClick={function () { setCantidad(function (actual) { return Math.min(producto.stock, actual + 1); }); }}
+                                            disabled={cantidad >= producto.stock}
+                                            className="w-8 h-8 border border-line text-ink flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                                         >
                                             <Plus size={16} />
                                         </button>
@@ -105,7 +109,8 @@ function ProductoDetalle() {
 
                                 <button
                                     onClick={manejarAgregar}
-                                    className="w-full mt-6 bg-forest hover:bg-forest-dark text-paper font-mono-ticket text-sm uppercase tracking-wide py-3.5 transition-colors flex items-center justify-center gap-2"
+                                    disabled={cantidad > producto.stock}
+                                    className="w-full mt-6 bg-forest hover:bg-forest-dark disabled:opacity-60 disabled:cursor-not-allowed text-paper font-mono-ticket text-sm uppercase tracking-wide py-3.5 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <ShoppingCart size={18} />
                                     Agregar al carrito
