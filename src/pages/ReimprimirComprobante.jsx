@@ -20,6 +20,7 @@ function ReimprimirComprobante() {
     const [venta, setVenta] = useState(null);
     const [error, setError] = useState("");
     const [cargando, setCargando] = useState(true);
+    const [pagando, setPagando] = useState(false);
 
     useEffect(function () {
         async function cargar() {
@@ -39,6 +40,46 @@ function ReimprimirComprobante() {
         }
         cargar();
     }, [codigo]);
+
+    async function manejarPagar() {
+        if (!venta) return;
+        setPagando(true);
+        setError("");
+        try {
+            // MOCK de pago: en realidad aca iria el redirect a MercadoPago.
+            // Cuando MP notifica al webhook del back, el back llama a cobrarVenta.
+            // Por ahora simulamos que el pago se concreto y cobramos directo.
+            await http.patch("/ventas/" + venta.id + "/cobrar", { metodoPago: "MercadoPago" });
+            // Recargamos el comprobante para mostrar el estado actualizado.
+            const respuesta = await http.get("/ventas/comprobante/" + codigo);
+            setVenta(respuesta.data.venta);
+        } catch (error) {
+            const mensaje = error.response && error.response.data && error.response.data.mensaje
+                ? error.response.data.mensaje
+                : "No se pudo procesar el pago.";
+            setError(mensaje);
+        } finally {
+            setPagando(false);
+        }
+    }
+
+    async function manejarCancelar() {
+        if (!venta) return;
+        setPagando(true);
+        setError("");
+        try {
+            await http.patch("/ventas/" + venta.id + "/cancelar", {});
+            const respuesta = await http.get("/ventas/comprobante/" + codigo);
+            setVenta(respuesta.data.venta);
+        } catch (error) {
+            const mensaje = error.response && error.response.data && error.response.data.mensaje
+                ? error.response.data.mensaje
+                : "No se pudo cancelar la venta.";
+            setError(mensaje);
+        } finally {
+            setPagando(false);
+        }
+    }
 
     if (cargando) {
         return (
@@ -111,7 +152,7 @@ function ReimprimirComprobante() {
                                  venta.estado === "CANCELADA" ? "text-red-600" :
                                  "text-amber")
                             }>
-                                {venta.estado}
+                                {venta.estado === "PENDIENTE" ? "PENDIENTE DE PAGO" : venta.estado}
                             </p>
                         </div>
                         <div>
@@ -151,6 +192,29 @@ function ReimprimirComprobante() {
                             ${Number(venta.total).toFixed(2)}
                         </span>
                     </div>
+
+                    {error && (
+                        <p className="font-mono-ticket text-sm text-red-600 mt-4 text-center">{error}</p>
+                    )}
+
+                    {venta.estado === "PENDIENTE" && (
+                        <div className="mt-6 flex flex-col gap-3">
+                            <button
+                                onClick={manejarPagar}
+                                disabled={pagando}
+                                className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 transition-colors"
+                            >
+                                {pagando ? "Procesando pago..." : "Pagar con billetera virtual"}
+                            </button>
+                            <button
+                                onClick={manejarCancelar}
+                                disabled={pagando}
+                                className="font-mono-ticket text-sm uppercase tracking-wide text-red-600 hover:text-red-700 border-b-2 border-red-600 pb-1 self-center"
+                            >
+                                Cancelar compra
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="text-center mt-8">
