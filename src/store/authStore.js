@@ -12,6 +12,7 @@ export const useAuthStore = create(function (set) {
         iniciarSesion: function (token, usuario) {
             localStorage.setItem("token", token);
             localStorage.setItem("usuario", JSON.stringify(usuario));
+            useCarritoStore.getState().vaciarCarrito();
             set({ token: token, usuario: usuario });
         },
 
