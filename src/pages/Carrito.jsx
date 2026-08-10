@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import http from "../api/http";
 import { useCarritoStore } from "../store/carritoStore";
@@ -14,7 +14,6 @@ function Carrito() {
 
     const [error, setError] = useState("");
     const [cargando, setCargando] = useState(false);
-    const [comprobante, setComprobante] = useState(null);
 
     // Datos fiscales del cliente para la factura (cliente anonimo).
     const [datosFactura, setDatosFactura] = useState({
@@ -23,6 +22,8 @@ function Carrito() {
         dni: "",
         email: ""
     });
+
+    const navegar = useNavigate();
 
     function manejarCambioDato(campo, valor) {
         setDatosFactura(function (prev) {
@@ -65,11 +66,9 @@ function Carrito() {
             const respuesta = await http.post("/ventas", payload);
             const venta = respuesta.data.venta;
             vaciarCarrito();
-            setComprobante({
-                codigo: venta.codigoComprobante,
-                ventaId: venta.id,
-                total: venta.total
-            });
+            // Navegamos por URL para que recargar siga mostrando el comprobante
+            // (la pantalla lo trae del back usando el codigo de la URL).
+            navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
         } catch (error) {
             const datos = error.response && error.response.data;
             let mensaje = "No se pudo completar la compra. Intenta de nuevo.";
@@ -87,86 +86,6 @@ function Carrito() {
         } finally {
             setCargando(false);
         }
-    }
-
-    async function manejarCancelarComprobante() {
-        if (!comprobante) return;
-        setError("");
-        setCargando(true);
-
-        try {
-            await http.patch("/ventas/" + comprobante.ventaId + "/cancelar", {});
-            setComprobante(null);
-        } catch (error) {
-            const mensaje = error.response && error.response.data && error.response.data.mensaje
-                ? error.response.data.mensaje
-                : "No se pudo cancelar la venta.";
-            setError(mensaje);
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    if (comprobante) {
-        return (
-            <div className="min-h-screen bg-paper">
-                <EncabezadoCliente />
-                <main className="max-w-2xl mx-auto px-6 py-20 text-center">
-                    <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-forest">
-                        Compra registrada
-                    </p>
-                    <h1 className="font-display text-4xl text-ink mt-3">
-                        Gracias por tu compra
-                    </h1>
-                    <p className="font-mono-ticket text-sm text-ink/60 mt-3">
-                        Tu venta quedo en estado <span className="font-bold">PENDIENTE</span>.
-                        Un cajero se encargara del cobro.
-                    </p>
-
-                    <div className="bg-ticket border border-line p-6 mt-8 inline-block">
-                        <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">
-                            Codigo de comprobante
-                        </p>
-                        <p className="font-mono-ticket text-xl text-ink mt-1">
-                            {comprobante.codigo}
-                        </p>
-                        <p className="font-mono-ticket text-xs text-ink/50 mt-4">
-                            Total: ${Number(comprobante.total).toFixed(2)}
-                        </p>
-                    </div>
-
-                    <p className="font-mono-ticket text-xs text-ink/50 mt-4">
-                        Guarda este codigo para reimprimir tu comprobante mas tarde.
-                    </p>
-
-                    {error && (
-                        <p className="font-mono-ticket text-sm text-red-600 mt-4">{error}</p>
-                    )}
-
-                    <div className="flex flex-col gap-3 mt-8">
-                        <Link
-                            to={"/comprobante/" + comprobante.codigo}
-                            className="inline-block bg-forest hover:bg-forest-dark text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 px-8 transition-colors no-underline"
-                        >
-                            Ver comprobante
-                        </Link>
-                        <button
-                            onClick={manejarCancelarComprobante}
-                            disabled={cargando}
-                            className="font-mono-ticket text-sm uppercase tracking-wide text-red-600 hover:text-red-700 border-b-2 border-red-600 pb-1 self-center"
-                        >
-                            {cargando ? "Cancelando..." : "Cancelar compra"}
-                        </button>
-                        <Link
-                            to="/catalogo"
-                            className="font-mono-ticket text-sm uppercase tracking-wide text-forest border-b-2 border-forest pb-1 mt-2 self-center no-underline"
-                        >
-                            Seguir comprando
-                        </Link>
-                    </div>
-                </main>
-            </div>
-        );
     }
 
     return (
