@@ -23,6 +23,7 @@ function ProductoDetalle() {
             try {
                 const respuesta = await http.get("/productos/" + id);
                 setProducto(respuesta.data.producto);
+                setCantidad(1);
             } catch {
                 setError("No se pudo cargar el producto.");
             } finally {
@@ -37,6 +38,10 @@ function ProductoDetalle() {
         agregarProducto(producto, cantidad);
         setAgregado(true);
     }
+
+    // El cliente ve el stock disponible = stock fisico - stock reservado
+    // por ventas PENDIENTES. El back ya devuelve ambos campos.
+    const stockDisponible = producto ? producto.stock - (producto.stockReservado || 0) : 0;
 
     return (
         <div className="min-h-screen bg-paper">
@@ -74,14 +79,14 @@ function ProductoDetalle() {
                             ${Number(producto.precio).toFixed(2)}
                         </p>
 
-                        {producto.stock === 0 ? (
+                        {stockDisponible === 0 ? (
                             <p className="font-mono-ticket text-sm text-red-600 mt-6">
                                 Producto sin stock disponible
                             </p>
                         ) : (
                             <>
                                 <p className="font-mono-ticket text-xs text-ink/60 mt-6">
-                                    Stock disponible: {producto.stock} unidades
+                                    Stock disponible: {stockDisponible} unidades
                                 </p>
                                 <div className="flex items-center gap-4 mt-3">
                                     <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
@@ -98,8 +103,8 @@ function ProductoDetalle() {
                                             {cantidad}
                                         </span>
                                         <button
-                                            onClick={function () { setCantidad(function (actual) { return Math.min(producto.stock, actual + 1); }); }}
-                                            disabled={cantidad >= producto.stock}
+                                            onClick={function () { setCantidad(function (actual) { return Math.min(stockDisponible, actual + 1); }); }}
+                                            disabled={cantidad >= stockDisponible}
                                             className="w-8 h-8 border border-line text-ink flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                                         >
                                             <Plus size={16} />
@@ -109,7 +114,7 @@ function ProductoDetalle() {
 
                                 <button
                                     onClick={manejarAgregar}
-                                    disabled={cantidad > producto.stock}
+                                    disabled={cantidad > stockDisponible}
                                     className="w-full mt-6 bg-forest hover:bg-forest-dark disabled:opacity-60 disabled:cursor-not-allowed text-paper font-mono-ticket text-sm uppercase tracking-wide py-3.5 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <ShoppingCart size={18} />
