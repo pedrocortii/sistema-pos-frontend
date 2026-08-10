@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, LogOut } from "lucide-react";
+import { ShoppingCart, LogIn, LogOut } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useCarritoStore } from "../store/carritoStore";
 
@@ -23,9 +23,11 @@ function EncabezadoCliente() {
                 </Link>
 
                 <div className="flex items-center gap-6 font-mono-ticket text-sm">
-                    <span className="text-paper/70">
-                        Hola, {usuario ? usuario.nombre : ""}
-                    </span>
+                    {usuario && (
+                        <span className="text-paper/70">
+                            Hola, {usuario.nombre}
+                        </span>
+                    )}
 
                     <Link to="/catalogo" className="uppercase tracking-wide no-underline hover:opacity-80 transition-opacity">
                         Catalogo
@@ -41,10 +43,17 @@ function EncabezadoCliente() {
                         )}
                     </Link>
 
-                    <button onClick={manejarCerrarSesion} className="flex items-center gap-2 uppercase tracking-wide hover:opacity-80 transition-opacity">
-                        <LogOut size={18} />
-                        Salir
-                    </button>
+                    {usuario ? (
+                        <button onClick={manejarCerrarSesion} className="flex items-center gap-2 uppercase tracking-wide hover:opacity-80 transition-opacity">
+                            <LogOut size={18} />
+                            Salir
+                        </button>
+                    ) : (
+                        <Link to="/" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity">
+                            <LogIn size={18} />
+                            Iniciar sesion
+                        </Link>
+                    )}
                 </div>
             </div>
         </header>
