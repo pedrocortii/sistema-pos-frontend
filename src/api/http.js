@@ -5,6 +5,10 @@ const http = axios.create({
     baseURL: import.meta.env.VITE_API_URL
 });
 
+const publicHttp = axios.create({
+    baseURL: import.meta.env.VITE_API_URL
+});
+
 http.interceptors.request.use(function (config) {
     const token = useAuthStore.getState().token;
     if (token) {
@@ -13,4 +17,5 @@ http.interceptors.request.use(function (config) {
     return config;
 });
 
+export { publicHttp };
 export default http;

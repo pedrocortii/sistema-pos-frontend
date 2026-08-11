@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import http from "../api/http";
+import http, { publicHttp } from "../api/http";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 
@@ -56,13 +56,14 @@ function ReimprimirComprobante() {
 
     async function manejarPagar() {
         if (!venta) return;
+
         setPagando(true);
         setError("");
         try {
             // MOCK de pago: en realidad aca iria el redirect a MercadoPago.
             // Cuando MP notifica al webhook del back, el back llama a cobrarVenta.
             // Por ahora simulamos que el pago se concreto y cobramos directo.
-            await http.patch("/ventas/" + venta.id + "/cobrar", { metodoPago: "MercadoPago" });
+            await publicHttp.patch("/ventas/" + venta.id + "/cobrar", { metodoPago: "MercadoPago" });
             // Recargamos el comprobante para mostrar el estado actualizado.
             const respuesta = await http.get("/ventas/comprobante/" + codigo);
             const v = respuesta.data.venta;
@@ -83,7 +84,7 @@ function ReimprimirComprobante() {
         setPagando(true);
         setError("");
         try {
-            await http.patch("/ventas/" + venta.id + "/cancelar", {});
+            await publicHttp.patch("/ventas/" + venta.id + "/cancelar", {});
             const respuesta = await http.get("/ventas/comprobante/" + codigo);
             const v = respuesta.data.venta;
             setVenta(v);
