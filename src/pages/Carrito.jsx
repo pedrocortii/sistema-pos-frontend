@@ -10,6 +10,7 @@ function Carrito() {
     const cambiarCantidad = useCarritoStore(function (estado) { return estado.cambiarCantidad; });
     const quitarProducto = useCarritoStore(function (estado) { return estado.quitarProducto; });
     const vaciarCarrito = useCarritoStore(function (estado) { return estado.vaciarCarrito; });
+    const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
 
     const [error, setError] = useState("");
@@ -65,6 +66,11 @@ function Carrito() {
         try {
             const respuesta = await http.post("/ventas", payload);
             const venta = respuesta.data.venta;
+            setUltimoComprobante({
+                codigo: venta.codigoComprobante,
+                estado: venta.estado,
+                total: venta.total
+            });
             vaciarCarrito();
             // Navegamos por URL para que recargar siga mostrando el comprobante
             // (la pantalla lo trae del back usando el codigo de la URL).
