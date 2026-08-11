@@ -4,6 +4,15 @@ import { persist } from "zustand/middleware";
 export const useCarritoStore = create(persist(function (set, get) {
     return {
         items: [],
+        ultimoComprobante: null,
+
+        setUltimoComprobante: function (comprobante) {
+            set({ ultimoComprobante: comprobante });
+        },
+
+        limpiarUltimoComprobante: function () {
+            set({ ultimoComprobante: null });
+        },
 
         agregarProducto: function (producto, cantidad) {
             const cantidadAAgregar = cantidad || 1;

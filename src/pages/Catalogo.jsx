@@ -73,7 +73,7 @@ function Catalogo() {
                                         <span className="font-mono-ticket text-lg text-forest">
                                             ${Number(producto.precio).toFixed(2)}
                                         </span>
-                                        {producto.stock === 0 && (
+                                        {(producto.stock - (producto.stockReservado || 0)) === 0 && (
                                             <span className="font-mono-ticket text-xs text-red-600">
                                                 Sin stock
                                             </span>

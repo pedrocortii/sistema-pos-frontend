@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import http from "../api/http";
 import { useCarritoStore } from "../store/carritoStore";
@@ -10,66 +10,88 @@ function Carrito() {
     const cambiarCantidad = useCarritoStore(function (estado) { return estado.cambiarCantidad; });
     const quitarProducto = useCarritoStore(function (estado) { return estado.quitarProducto; });
     const vaciarCarrito = useCarritoStore(function (estado) { return estado.vaciarCarrito; });
+    const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
 
     const [error, setError] = useState("");
     const [cargando, setCargando] = useState(false);
-    const [compraExitosa, setCompraExitosa] = useState(false);
+
+    // Datos fiscales del cliente para la factura (cliente anonimo).
+    const [datosFactura, setDatosFactura] = useState({
+        nombre: "",
+        apellido: "",
+        dni: "",
+        email: ""
+    });
+
+    const navegar = useNavigate();
+
+    function manejarCambioDato(campo, valor) {
+        setDatosFactura(function (prev) {
+            return { ...prev, [campo]: valor };
+        });
+    }
+
+    function datosFacturaValidos() {
+        return datosFactura.nombre.trim() !== ""
+            && datosFactura.apellido.trim() !== ""
+            && datosFactura.dni.trim() !== ""
+            && datosFactura.email.trim() !== "";
+    }
 
     async function manejarConfirmarCompra() {
         setError("");
+
+        if (!datosFacturaValidos()) {
+            setError("Completa todos los datos para la factura antes de confirmar.");
+            return;
+        }
+
         setCargando(true);
 
         const itemsParaEnviar = items.map(function (item) {
             return { productoId: item.productoId, cantidad: item.cantidad };
         });
 
+        const payload = {
+            items: itemsParaEnviar,
+            cliente: {
+                nombre: datosFactura.nombre.trim(),
+                apellido: datosFactura.apellido.trim(),
+                dni: datosFactura.dni.trim(),
+                email: datosFactura.email.trim()
+            }
+        };
+
         try {
-            await http.post("/ventas", { items: itemsParaEnviar });
+            const respuesta = await http.post("/ventas", payload);
+            const venta = respuesta.data.venta;
+            setUltimoComprobante({
+                codigo: venta.codigoComprobante,
+                estado: venta.estado,
+                total: venta.total
+            });
             vaciarCarrito();
-            setCompraExitosa(true);
+            // Navegamos por URL para que recargar siga mostrando el comprobante
+            // (la pantalla lo trae del back usando el codigo de la URL).
+            navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
         } catch (error) {
             const datos = error.response && error.response.data;
             let mensaje = "No se pudo completar la compra. Intenta de nuevo.";
 
             if (datos) {
-                if (Array.isArray(datos.errors) && datos.errors.length > 0) {
+                if (Array.isArray(datos.errores) && datos.errores.length > 0) {
+                    mensaje = datos.errores.map(function (e) { return e.message || e; }).join(". ");
+                } else if (Array.isArray(datos.errors) && datos.errors.length > 0) {
                     mensaje = datos.errors.map(function (e) { return e.message || e; }).join(". ");
                 } else if (datos.mensaje) {
                     mensaje = datos.mensaje;
-                } else if (datos.message) {
-                    mensaje = datos.message;
                 }
             }
             setError(mensaje);
         } finally {
             setCargando(false);
         }
-    }
-
-    if (compraExitosa) {
-        return (
-            <div className="min-h-screen bg-paper">
-                <EncabezadoCliente />
-                <main className="max-w-2xl mx-auto px-6 py-20 text-center">
-                    <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-forest">
-                        Compra confirmada
-                    </p>
-                    <h1 className="font-display text-4xl text-ink mt-3">
-                        Gracias por tu compra
-                    </h1>
-                    <p className="font-mono-ticket text-sm text-ink/60 mt-3">
-                        Tu venta quedo registrada correctamente.
-                    </p>
-                    <Link
-                        to="/catalogo"
-                        className="inline-block mt-8 bg-forest hover:bg-forest-dark text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 px-8 transition-colors"
-                    >
-                        Seguir comprando
-                    </Link>
-                </main>
-            </div>
-        );
     }
 
     return (
@@ -150,6 +172,70 @@ function Carrito() {
                                 ${obtenerTotal().toFixed(2)}
                             </span>
                         </div>
+
+                        <section className="mt-10">
+                            <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
+                                Paso final
+                            </p>
+                            <h2 className="font-display text-2xl text-ink mt-1 mb-4">
+                                Datos para la factura
+                            </h2>
+                            <p className="font-mono-ticket text-xs text-ink/60 mb-5">
+                                No necesitas crear cuenta. Solo completa estos datos para emitir el comprobante.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                        Nombre
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={datosFactura.nombre}
+                                        onChange={function (e) { manejarCambioDato("nombre", e.target.value); }}
+                                        required
+                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                        Apellido
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={datosFactura.apellido}
+                                        onChange={function (e) { manejarCambioDato("apellido", e.target.value); }}
+                                        required
+                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                        DNI
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={datosFactura.dni}
+                                        onChange={function (e) { manejarCambioDato("dni", e.target.value); }}
+                                        required
+                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={datosFactura.email}
+                                        onChange={function (e) { manejarCambioDato("email", e.target.value); }}
+                                        required
+                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                        placeholder="tucorreo@ejemplo.com"
+                                    />
+                                </div>
+                            </div>
+                        </section>
 
                         {error && (
                             <p className="font-mono-ticket text-sm text-red-600 mt-4">{error}</p>

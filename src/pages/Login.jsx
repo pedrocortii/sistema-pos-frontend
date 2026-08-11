@@ -23,12 +23,7 @@ function Login() {
         try {
             const respuesta = await http.post("/usuarios/login", { email, contrasena });
             iniciarSesion(respuesta.data.token, respuesta.data.usuario);
-
-            if (respuesta.data.usuario.rol === "Cliente") {
-                navegar("/catalogo");
-            } else {
-                navegar("/dashboard");
-            }
+            navegar("/dashboard");
         } catch (error) {
             const mensaje = error.response && error.response.data && error.response.data.mensaje
                 ? error.response.data.mensaje
@@ -40,7 +35,7 @@ function Login() {
     }
 
     return (
-        <PanelAuth etiqueta="Inicio de sesion" titulo="Bienvenido de nuevo">
+        <PanelAuth etiqueta="Acceso para cajeros y administradores" titulo="Bienvenido de nuevo">
             {registroExitoso && (
                 <p className="text-center font-mono-ticket text-sm text-forest mb-5">
                     Cuenta creada correctamente. Ya podes iniciar sesion.
@@ -88,9 +83,9 @@ function Login() {
                 </button>
 
                 <p className="text-center font-mono-ticket text-sm text-ink/60">
-                    No tenes cuenta?{" "}
-                    <Link to="/registro" className="text-forest underline">
-                        Registrate
+                    Es cliente?{" "}
+                    <Link to="/catalogo" className="text-forest underline">
+                        Ir al catalogo
                     </Link>
                 </p>
             </form>
