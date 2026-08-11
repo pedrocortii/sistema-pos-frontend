@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import http from "../api/http";
+import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 
 function formatearFecha(fechaIso) {
@@ -17,6 +18,8 @@ function formatearFecha(fechaIso) {
 
 function ReimprimirComprobante() {
     const { codigo } = useParams();
+    const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
+    const limpiarUltimoComprobante = useCarritoStore(function (estado) { return estado.limpiarUltimoComprobante; });
     const [venta, setVenta] = useState(null);
     const [error, setError] = useState("");
     const [cargando, setCargando] = useState(true);
@@ -28,7 +31,17 @@ function ReimprimirComprobante() {
             setError("");
             try {
                 const respuesta = await http.get("/ventas/comprobante/" + codigo);
-                setVenta(respuesta.data.venta);
+                const v = respuesta.data.venta;
+                setVenta(v);
+                if (v.estado === "PENDIENTE") {
+                    setUltimoComprobante({
+                        codigo: v.codigoComprobante,
+                        estado: v.estado,
+                        total: v.total
+                    });
+                } else {
+                    limpiarUltimoComprobante();
+                }
             } catch (error) {
                 const mensaje = error.response && error.response.data && error.response.data.mensaje
                     ? error.response.data.mensaje
@@ -39,7 +52,7 @@ function ReimprimirComprobante() {
             }
         }
         cargar();
-    }, [codigo]);
+    }, [codigo, setUltimoComprobante, limpiarUltimoComprobante]);
 
     async function manejarPagar() {
         if (!venta) return;
@@ -52,7 +65,9 @@ function ReimprimirComprobante() {
             await http.patch("/ventas/" + venta.id + "/cobrar", { metodoPago: "MercadoPago" });
             // Recargamos el comprobante para mostrar el estado actualizado.
             const respuesta = await http.get("/ventas/comprobante/" + codigo);
-            setVenta(respuesta.data.venta);
+            const v = respuesta.data.venta;
+            setVenta(v);
+            limpiarUltimoComprobante();
         } catch (error) {
             const mensaje = error.response && error.response.data && error.response.data.mensaje
                 ? error.response.data.mensaje
@@ -70,7 +85,9 @@ function ReimprimirComprobante() {
         try {
             await http.patch("/ventas/" + venta.id + "/cancelar", {});
             const respuesta = await http.get("/ventas/comprobante/" + codigo);
-            setVenta(respuesta.data.venta);
+            const v = respuesta.data.venta;
+            setVenta(v);
+            limpiarUltimoComprobante();
         } catch (error) {
             const mensaje = error.response && error.response.data && error.response.data.mensaje
                 ? error.response.data.mensaje
@@ -195,6 +212,12 @@ function ReimprimirComprobante() {
 
                     {error && (
                         <p className="font-mono-ticket text-sm text-red-600 mt-4 text-center">{error}</p>
+                    )}
+
+                    {venta.estado === "COBRADA" && (
+                        <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
+                            📧 Compra cobrada con éxito. Se envió una copia del comprobante a {venta.clienteEmail || "tu correo electrónico"}.
+                        </div>
                     )}
 
                     {venta.estado === "PENDIENTE" && (
