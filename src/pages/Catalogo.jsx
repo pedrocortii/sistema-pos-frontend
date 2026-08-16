@@ -15,9 +15,12 @@ function Catalogo() {
             setCargando(true);
             setError("");
             try {
-                const respuesta = await http.get("/productos", { params: { pagina: pagina, limite: 9 } });
-                setProductos(respuesta.data.productos);
-                setPaginacion(respuesta.data.paginacion);
+                const respuesta = await http.get("/productos", { params: { page: pagina, limit: 9 } });
+                setProductos(respuesta.data.data);
+                setPaginacion({
+                    paginaActual: respuesta.data.page,
+                    totalPaginas: Math.ceil(respuesta.data.total / respuesta.data.limit)
+                });
             } catch {
                 setError("No se pudieron cargar los productos.");
             } finally {

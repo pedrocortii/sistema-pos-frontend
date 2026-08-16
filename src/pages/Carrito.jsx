@@ -21,7 +21,8 @@ function Carrito() {
         nombre: "",
         apellido: "",
         dni: "",
-        email: ""
+        email: "",
+        confirmarEmail: ""
     });
 
     const navegar = useNavigate();
@@ -36,14 +37,16 @@ function Carrito() {
         return datosFactura.nombre.trim() !== ""
             && datosFactura.apellido.trim() !== ""
             && datosFactura.dni.trim() !== ""
-            && datosFactura.email.trim() !== "";
+            && datosFactura.email.trim() !== ""
+            && datosFactura.confirmarEmail.trim() !== ""
+            && datosFactura.email.trim().toLowerCase() === datosFactura.confirmarEmail.trim().toLowerCase();
     }
 
     async function manejarConfirmarCompra() {
         setError("");
 
         if (!datosFacturaValidos()) {
-            setError("Completa todos los datos para la factura antes de confirmar.");
+            setError("Completa todos los datos y verifica que los emails coincidan antes de confirmar.");
             return;
         }
 
@@ -59,7 +62,8 @@ function Carrito() {
                 nombre: datosFactura.nombre.trim(),
                 apellido: datosFactura.apellido.trim(),
                 dni: datosFactura.dni.trim(),
-                email: datosFactura.email.trim()
+                email: datosFactura.email.trim(),
+                confirmarEmail: datosFactura.confirmarEmail.trim()
             }
         };
 
@@ -232,6 +236,19 @@ function Carrito() {
                                         required
                                         className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
                                         placeholder="tucorreo@ejemplo.com"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                        Confirmar email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={datosFactura.confirmarEmail}
+                                        onChange={function (e) { manejarCambioDato("confirmarEmail", e.target.value); }}
+                                        required
+                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                        placeholder="Repite tu correo"
                                     />
                                 </div>
                             </div>
