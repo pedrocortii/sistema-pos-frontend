@@ -217,7 +217,7 @@ function ReimprimirComprobante() {
 
                     {venta.estado === "COBRADA" && (
                         <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
-                            📧 Compra cobrada con éxito. Se envió una copia del comprobante a {venta.clienteEmail || "tu correo electrónico"}.
+                            Compra cobrada con éxito. Tu comprobante ya está disponible en esta pantalla.
                         </div>
                     )}
 
