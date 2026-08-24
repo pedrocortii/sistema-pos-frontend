@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
 // Protege una ruta. Si recibe `rolesPermitidos`, valida que el rol del
@@ -19,7 +19,7 @@ function RutaProtegida({ children, rolesPermitidos }) {
         }
     }
 
-    return children;
+    return children || <Outlet />;
 }
 
 export default RutaProtegida;

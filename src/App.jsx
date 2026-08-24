@@ -7,6 +7,11 @@ import ProductoDetalle from "./pages/ProductoDetalle";
 import Carrito from "./pages/Carrito";
 import ReimprimirComprobante from "./pages/ReimprimirComprobante";
 import RutaProtegida from "./components/RutaProtegida";
+import AdminLayout from "./components/AdminLayout";
+import AdminProductos from "./pages/AdminProductos";
+import AdminStock from "./pages/AdminStock";
+import AdminVentas from "./pages/AdminVentas";
+import AdminVentaDetalle from "./pages/AdminVentaDetalle";
 import { useAuthStore } from "./store/authStore";
 
 function RedireccionRaiz() {
@@ -38,6 +43,25 @@ function App() {
                         </RutaProtegida>
                     }
                 />
+
+                <Route element={<RutaProtegida rolesPermitidos={["Administrador", "Cajero"]} />}>
+                    <Route path="/admin" element={<AdminLayout />}>
+                        <Route index element={<Navigate to="productos" replace />} />
+                        <Route
+                            path="productos"
+                            element={<AdminProductos />}
+                        />
+                        <Route
+                            path="stock"
+                            element={<AdminStock />}
+                        />
+                        <Route
+                            path="ventas"
+                            element={<AdminVentas />}
+                        />
+                        <Route path="ventas/:id" element={<AdminVentaDetalle />} />
+                    </Route>
+                </Route>
             </Routes>
         </BrowserRouter>
     );

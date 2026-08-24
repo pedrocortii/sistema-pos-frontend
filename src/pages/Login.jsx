@@ -22,8 +22,14 @@ function Login() {
 
         try {
             const respuesta = await http.post("/usuarios/login", { email, contrasena });
-            iniciarSesion(respuesta.data.token, respuesta.data.usuario);
-            navegar("/dashboard");
+            const usuario = respuesta.data.usuario;
+            const destinos = { Administrador: "/admin/productos", Cajero: "/admin/ventas", Cliente: "/catalogo" };
+            if (!destinos[usuario.rol]) {
+                setError("No tenés permisos para acceder al sistema.");
+                return;
+            }
+            iniciarSesion(respuesta.data.token, usuario);
+            navegar(destinos[usuario.rol]);
         } catch (error) {
             const mensaje = error.response && error.response.data && error.response.data.mensaje
                 ? error.response.data.mensaje
