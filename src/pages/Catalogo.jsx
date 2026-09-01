@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import http from "../api/http";
 import EncabezadoCliente from "../components/EncabezadoCliente";
+import ProductoCatalogoCard from "../components/ProductoCatalogoCard";
 
 function Catalogo() {
     const [productos, setProductos] = useState([]);
@@ -54,40 +54,7 @@ function Catalogo() {
                 {!cargando && !error && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {productos.map(function (producto) {
-                            return (
-                                <Link
-                                    key={producto.id}
-                                    to={"/catalogo/" + producto.id}
-                                    className="bg-ticket border border-line p-6 flex flex-col no-underline hover:border-forest transition-colors"
-                                >
-                                    <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">
-                                        {producto.categoria}
-                                    </p>
-                                    <h2 className="font-display text-xl text-ink mt-1">
-                                        {producto.nombre}
-                                    </h2>
-                                    {producto.descripcion && (
-                                        <p className="text-sm text-ink/60 mt-2 flex-1">
-                                            {producto.descripcion}
-                                        </p>
-                                    )}
-
-                                    <div className="flex items-center justify-between mt-5">
-                                        <span className="font-mono-ticket text-lg text-forest">
-                                            ${Number(producto.precio).toFixed(2)}
-                                        </span>
-                                        {(producto.stock - (producto.stockReservado || 0)) === 0 && (
-                                            <span className="font-mono-ticket text-xs text-red-600">
-                                                Sin stock
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <span className="w-full mt-4 text-center border border-forest text-forest font-mono-ticket text-sm uppercase tracking-wide py-2.5">
-                                        Ver producto
-                                    </span>
-                                </Link>
-                            );
+                            return <ProductoCatalogoCard key={producto.id} producto={producto} />;
                         })}
                     </div>
                 )}
