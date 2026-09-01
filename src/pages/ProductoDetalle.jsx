@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
 import http from "../api/http";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
+import SelectorCantidad from "../components/SelectorCantidad";
 
 function ProductoDetalle() {
     const { id } = useParams();
@@ -35,8 +36,9 @@ function ProductoDetalle() {
     }, [id]);
 
     function manejarAgregar() {
-        agregarProducto(producto, cantidad);
-        setAgregado(true);
+        if (agregarProducto(producto, cantidad)) {
+            setAgregado(true);
+        }
     }
 
     // El cliente ve el stock disponible = stock fisico - stock reservado
@@ -92,24 +94,7 @@ function ProductoDetalle() {
                                     <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
                                         Cantidad
                                     </label>
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={function () { setCantidad(function (actual) { return Math.max(1, actual - 1); }); }}
-                                            className="w-8 h-8 border border-line text-ink flex items-center justify-center"
-                                        >
-                                            <Minus size={16} />
-                                        </button>
-                                        <span className="font-mono-ticket text-lg w-8 text-center">
-                                            {cantidad}
-                                        </span>
-                                        <button
-                                            onClick={function () { setCantidad(function (actual) { return Math.min(stockDisponible, actual + 1); }); }}
-                                            disabled={cantidad >= stockDisponible}
-                                            className="w-8 h-8 border border-line text-ink flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                                        >
-                                            <Plus size={16} />
-                                        </button>
-                                    </div>
+                                    <SelectorCantidad cantidad={cantidad} onCambiar={setCantidad} maximo={stockDisponible} />
                                 </div>
 
                                 <button
