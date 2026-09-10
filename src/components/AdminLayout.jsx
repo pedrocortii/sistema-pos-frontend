@@ -1,7 +1,7 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { Boxes, LogOut, Menu, Package, ReceiptText, X } from "lucide-react";
 import { useState } from "react";
-import { useAuthStore } from "../store/authStore";
+import { useAuth } from "../hooks/useAuth";
 
 const enlaces = [
     { to: "/admin/productos", texto: "Productos", icono: Package },
@@ -11,14 +11,7 @@ const enlaces = [
 
 function AdminLayout() {
     const [menuAbierto, setMenuAbierto] = useState(false);
-    const usuario = useAuthStore(function (estado) { return estado.usuario; });
-    const cerrarSesion = useAuthStore(function (estado) { return estado.cerrarSesion; });
-    const navegar = useNavigate();
-
-    function manejarCerrarSesion() {
-        cerrarSesion();
-        navegar("/");
-    }
+    const { usuario, logout } = useAuth();
 
     return (
         <div className="min-h-screen bg-paper text-ink">
@@ -91,7 +84,7 @@ function AdminLayout() {
                         </div>
                         <button
                             type="button"
-                            onClick={manejarCerrarSesion}
+                            onClick={logout}
                             className="flex cursor-pointer items-center gap-2 rounded-md border border-forest px-3 py-2 font-mono-ticket text-xs uppercase tracking-wide text-forest transition-colors hover:bg-forest hover:text-paper focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-2"
                         >
                             <LogOut size={16} aria-hidden="true" />
