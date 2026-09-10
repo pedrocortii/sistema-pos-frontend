@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import http from "../api/http";
-import { useAuthStore } from "../store/authStore";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 import PanelAuth from "../components/PanelAuth";
 
 function Login() {
@@ -10,33 +9,18 @@ function Login() {
     const [error, setError] = useState("");
     const [cargando, setCargando] = useState(false);
 
-    const navegar = useNavigate();
     const ubicacion = useLocation();
     const registroExitoso = ubicacion.state && ubicacion.state.registroExitoso;
-    const iniciarSesion = useAuthStore(function (estado) { return estado.iniciarSesion; });
+    const { login } = useAuth();
 
     async function manejarEnvio(evento) {
         evento.preventDefault();
         setError("");
         setCargando(true);
 
-        try {
-            const respuesta = await http.post("/usuarios/login", { email, contrasena });
-            const usuario = respuesta.data.usuario;
-            const destinos = { Administrador: "/admin/productos", Cajero: "/admin/ventas", Cliente: "/catalogo" };
-            if (!destinos[usuario.rol]) {
-                setError("No tenés permisos para acceder al sistema.");
-                return;
-            }
-            iniciarSesion(respuesta.data.token, usuario);
-            navegar(destinos[usuario.rol]);
-        } catch (error) {
-            const mensaje = error.response && error.response.data && error.response.data.mensaje
-                ? error.response.data.mensaje
-                : "No se pudo iniciar sesion. Intenta de nuevo.";
-            setError(mensaje);
-        } finally {
-            setCargando(false);
+        const resultado = await login(email, contrasena);
+        if (!resultado.success) {
+            setError(resultado.error);
         }
     }
 
