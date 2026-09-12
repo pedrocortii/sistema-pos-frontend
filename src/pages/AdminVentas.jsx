@@ -2,16 +2,16 @@ import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listarVentas } from "../api/ventas";
 import { Alerta, Cabecera, Carga, Paginacion } from "./AdminProductos";
-import { useApi } from "../hooks/useApi";
+import { usePeticion } from "../hooks/usePeticion";
 
 function AdminVentas() {
     const nav = useNavigate();
     const [params, setParams] = useSearchParams();
 
-    const { data: ventasResponse, isLoading: cargando, error, execute: cargar } = useApi(listarVentas);
+    const { data: ventasResponse, isLoading: cargando, error, execute: cargar } = usePeticion(listarVentas);
 
     // Usamos optional chaining ?. para evitar que la app colapse cuando ventasResponse es null
-    const ventas = ventasResponse?.ventas || [];
+    const ventas = ventasResponse?.ventas;
 
     const pagina = Number(params.get("pagina") || 1);
     const estado = params.get("estado") || "";
@@ -34,11 +34,13 @@ function AdminVentas() {
             estado: estado || undefined,
             fechaDesde: desde || undefined,
             fechaHasta: hasta || undefined
+        }).catch(function () {
+            // El error queda disponible para que la pantalla lo muestre.
         });
     }, [estado, desde, hasta, pagina, cargar]);
 
     const datos = useMemo(function () {
-        return ventas.filter(function (v) {
+        return (ventas || []).filter(function (v) {
             return v.codigoComprobante.toLowerCase().includes(buscar.toLowerCase());
         });
     }, [ventas, buscar]);

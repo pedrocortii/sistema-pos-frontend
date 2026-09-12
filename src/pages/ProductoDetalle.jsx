@@ -1,39 +1,39 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
-import http from "../api/http";
+import { obtenerProducto } from "../api/productos";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import SelectorCantidad from "../components/SelectorCantidad";
+import MensajeCarga from "../components/MensajeCarga";
+import MensajeError from "../components/MensajeError";
+import { usePeticion } from "../hooks/usePeticion";
+
+function obtenerErrorProducto() {
+    return "No se pudo cargar el producto.";
+}
 
 function ProductoDetalle() {
     const { id } = useParams();
     const navegar = useNavigate();
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
 
-    const [producto, setProducto] = useState(null);
     const [cantidad, setCantidad] = useState(1);
-    const [cargando, setCargando] = useState(true);
-    const [error, setError] = useState("");
     const [agregado, setAgregado] = useState(false);
+    const { respuesta: producto, cargando, error, ejecutar } = usePeticion(obtenerProducto, { obtenerMensajeError: obtenerErrorProducto });
 
     useEffect(function () {
         async function cargarProducto() {
-            setCargando(true);
-            setError("");
             try {
-                const respuesta = await http.get("/productos/" + id);
-                setProducto(respuesta.data.producto);
+                await ejecutar(id);
                 setCantidad(1);
             } catch {
-                setError("No se pudo cargar el producto.");
-            } finally {
-                setCargando(false);
+                // El hook mantiene el mensaje visible para la persona usuaria.
             }
         }
 
         cargarProducto();
-    }, [id]);
+    }, [id, ejecutar]);
 
     function manejarAgregar() {
         if (agregarProducto(producto, cantidad)) {
@@ -55,13 +55,9 @@ function ProductoDetalle() {
                     Volver al catalogo
                 </Link>
 
-                {cargando && (
-                    <p className="font-mono-ticket text-sm text-ink/60 mt-8">Cargando...</p>
-                )}
+                {cargando && <MensajeCarga className="mt-8" />}
 
-                {error && (
-                    <p className="font-mono-ticket text-sm text-red-600 mt-8">{error}</p>
-                )}
+                {error && <MensajeError texto={error} className="mt-8" />}
 
                 {producto && (
                     <div className="bg-ticket border border-line p-8 mt-6">

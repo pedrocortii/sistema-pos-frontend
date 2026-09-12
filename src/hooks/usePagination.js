@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { useApi } from "./useApi";
+import { usePeticion } from "./usePeticion";
 
-export function usePagination(apiFunc, initialParams = {}) {
+const parametrosIniciales = {};
+
+export function usePagination(apiFunc, initialParams = parametrosIniciales) {
     const [page, setPage] = useState(1);
     const [limit] = useState(10);
 
-    const { data, isLoading, error, execute, setData, setError } = useApi(apiFunc);
+    const { data, isLoading, error, execute, setData, setError } = usePeticion(apiFunc);
 
     const fetchPage = useCallback(async (params = {}) => {
         const result = await execute({
@@ -19,7 +21,9 @@ export function usePagination(apiFunc, initialParams = {}) {
     }, [execute, page, limit, initialParams]);
 
     useEffect(() => {
-        fetchPage();
+        fetchPage().catch(function () {
+            // El error queda disponible para que la pantalla lo muestre.
+        });
     }, [fetchPage]);
 
     return {
