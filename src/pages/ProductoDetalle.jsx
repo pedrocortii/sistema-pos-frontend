@@ -20,6 +20,7 @@ function ProductoDetalle() {
 
     const [cantidad, setCantidad] = useState(1);
     const [agregado, setAgregado] = useState(false);
+    const [avisoStock, setAvisoStock] = useState("");
     const { respuesta: producto, cargando, error, ejecutar } = usePeticion(obtenerProducto, { obtenerMensajeError: obtenerErrorProducto });
 
     useEffect(function () {
@@ -38,12 +39,20 @@ function ProductoDetalle() {
     function manejarAgregar() {
         if (agregarProducto(producto, cantidad)) {
             setAgregado(true);
+            setAvisoStock("");
+        } else {
+            setAgregado(false);
+            setAvisoStock("No hay stock suficiente para agregar esa cantidad al carrito.");
         }
     }
 
     // El cliente ve el stock disponible = stock fisico - stock reservado
     // por ventas PENDIENTES. El back ya devuelve ambos campos.
-    const stockDisponible = producto ? producto.stock - (producto.stockReservado || 0) : 0;
+    const stock = producto ? Number(producto.stock) : 0;
+    const stockReservado = producto ? Number(producto.stockReservado || 0) : 0;
+    const stockDisponible = Number.isFinite(stock)
+        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
+        : 0;
 
     return (
         <div className="min-h-screen bg-paper">
@@ -90,7 +99,7 @@ function ProductoDetalle() {
                                     <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
                                         Cantidad
                                     </label>
-                                    <SelectorCantidad cantidad={cantidad} onCambiar={setCantidad} maximo={stockDisponible} />
+                                    <SelectorCantidad cantidad={cantidad} onCambiar={function (valor) { setAvisoStock(""); setCantidad(valor); }} maximo={stockDisponible} />
                                 </div>
 
                                 <button
@@ -101,6 +110,8 @@ function ProductoDetalle() {
                                     <ShoppingCart size={18} />
                                     Agregar al carrito
                                 </button>
+
+                                {avisoStock && <p className="mt-3 text-center font-mono-ticket text-sm text-red-600" role="alert">{avisoStock}</p>}
 
                                 {agregado && (
                                     <div className="mt-4 text-center">

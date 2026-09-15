@@ -7,10 +7,13 @@ import { useFilter } from "../hooks/useFilter";
 import { usePagination } from "../hooks/usePagination";
 import MensajeCarga from "../components/MensajeCarga";
 import MensajeError from "../components/MensajeError";
+import { useAuthStore } from "../store/authStore";
 
 const porPagina = 10;
 
 function AdminProductos() {
+    const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const esAdministrador = usuario?.rol === "Administrador";
     const { open, close, modalData: modal } = useModal();
     const { data: productosResponse = {}, isLoading: cargando, error, page: pagina, setPage: setPagina, fetchPage: cargar } = usePagination(listarProductos);
 
@@ -61,12 +64,14 @@ function AdminProductos() {
                     placeholder="Buscar por nombre"
                     className="border border-line bg-ticket px-3 py-2 font-mono-ticket text-sm outline-none focus:border-forest"
                 />
-                <button
-                    onClick={function () { open({}); }}
-                    className="flex cursor-pointer items-center justify-center gap-2 bg-forest px-4 py-2 font-mono-ticket text-sm text-paper"
-                >
-                    <Plus size={17} />Nuevo producto
-                </button>
+                {esAdministrador && (
+                    <button
+                        onClick={function () { open({}); }}
+                        className="flex cursor-pointer items-center justify-center gap-2 bg-forest px-4 py-2 font-mono-ticket text-sm text-paper"
+                    >
+                        <Plus size={17} />Nuevo producto
+                    </button>
+                )}
             </div>
 
             {error && <Alerta texto={error} />}
@@ -81,7 +86,7 @@ function AdminProductos() {
                                 <th>Precio</th>
                                 <th>Disponible</th>
                                 <th>Categoría</th>
-                                <th className="p-3">Acciones</th>
+                                {esAdministrador && <th className="p-3">Acciones</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -92,16 +97,18 @@ function AdminProductos() {
                                         <td>${Number(p.precio).toFixed(2)}</td>
                                         <td>{p.stock - (p.stockReservado || 0)}</td>
                                         <td>{p.categoria}</td>
-                                        <td className="p-3">
-                                            <div className="flex gap-2">
-                                                <button onClick={function () { open(p); }} className="cursor-pointer text-forest" aria-label="Editar">
-                                                    <Pencil size={17} />
-                                                </button>
-                                                <button onClick={function () { borrar(p); }} className="cursor-pointer text-red-600" aria-label="Eliminar">
-                                                    <Trash2 size={17} />
-                                                </button>
-                                            </div>
-                                        </td>
+                                        {esAdministrador && (
+                                            <td className="p-3">
+                                                <div className="flex gap-2">
+                                                    <button onClick={function () { open(p); }} className="cursor-pointer text-forest" aria-label="Editar">
+                                                        <Pencil size={17} />
+                                                    </button>
+                                                    <button onClick={function () { borrar(p); }} className="cursor-pointer text-red-600" aria-label="Eliminar">
+                                                        <Trash2 size={17} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
@@ -112,7 +119,7 @@ function AdminProductos() {
             )}
 
             <Paginacion pagina={pagina} total={totalPaginas} cambiar={setPagina} />
-            {modal !== null && (
+            {esAdministrador && modal !== null && (
                 <ProductoForm
                     producto={modal.id ? modal : null}
                     alCerrar={close}

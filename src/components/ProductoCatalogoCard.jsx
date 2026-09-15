@@ -7,8 +7,13 @@ function ProductoCatalogoCard({ producto }) {
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
     const items = useCarritoStore(function (estado) { return estado.items; });
     const [agregado, setAgregado] = useState(false);
+    const [avisoStock, setAvisoStock] = useState("");
 
-    const stockDisponible = Math.max(0, producto.stock - (producto.stockReservado || 0));
+    const stock = Number(producto.stock);
+    const stockReservado = Number(producto.stockReservado || 0);
+    const stockDisponible = Number.isFinite(stock)
+        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
+        : 0;
     const itemEnCarrito = items.find(function (item) { return item.productoId === producto.id; });
     const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
     const cantidadMaxima = Math.max(0, stockDisponible - cantidadEnCarrito);
@@ -18,7 +23,11 @@ function ProductoCatalogoCard({ producto }) {
     function manejarAgregar() {
         if (agregarProducto(producto, cantidad)) {
             setAgregado(true);
+            setAvisoStock("");
             setCantidad(1);
+        } else {
+            setAgregado(false);
+            setAvisoStock("No hay stock suficiente para agregar ese producto.");
         }
     }
 
@@ -53,7 +62,7 @@ function ProductoCatalogoCard({ producto }) {
             )}
 
             <div className="flex items-center gap-3 mt-4">
-                <SelectorCantidad cantidad={cantidad} onCambiar={setCantidad} maximo={cantidadMaxima} />
+                <SelectorCantidad cantidad={cantidad} onCambiar={function (valor) { setAvisoStock(""); setCantidad(valor); }} maximo={cantidadMaxima} />
                 <button
                     type="button"
                     onClick={manejarAgregar}
@@ -65,6 +74,7 @@ function ProductoCatalogoCard({ producto }) {
                     {agregado ? <Check size={16} /> : <ShoppingCart size={16} />}
                 </button>
             </div>
+            {avisoStock && <p className="mt-3 font-mono-ticket text-xs text-red-600" role="alert">{avisoStock}</p>}
         </article>
     );
 }
