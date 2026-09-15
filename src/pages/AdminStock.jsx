@@ -5,8 +5,11 @@ import AjustarStockModal from "../components/AjustarStockModal";
 import { Alerta, Cabecera, Carga, Paginacion } from "./AdminProductos";
 import { usePeticion } from "../hooks/usePeticion";
 import { useModal } from "../hooks/useModal";
+import { useAuthStore } from "../store/authStore";
 
 function AdminStock() {
+    const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const esAdministrador = usuario?.rol === "Administrador";
     const { data: stockResponse = {}, isLoading: cargando, error, execute: cargar } = usePeticion(listarStock);
     const { open, close, modalData: modal } = useModal();
     const [bajo, setBajo] = useState(false);
@@ -70,7 +73,7 @@ function AdminStock() {
                                 <th>Actual</th>
                                 <th>Reservado</th>
                                 <th>Disponible</th>
-                                <th className="p-3">Acciones</th>
+                                {esAdministrador && <th className="p-3">Acciones</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -89,14 +92,16 @@ function AdminStock() {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="p-3">
-                                            <button
-                                                onClick={function () { open(p); }}
-                                                className="flex cursor-pointer items-center gap-1 text-forest"
-                                            >
-                                                <SlidersHorizontal size={16} />Ajustar
-                                            </button>
-                                        </td>
+                                        {esAdministrador && (
+                                            <td className="p-3">
+                                                <button
+                                                    onClick={function () { open(p); }}
+                                                    className="flex cursor-pointer items-center gap-1 text-forest"
+                                                >
+                                                    <SlidersHorizontal size={16} />Ajustar
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
@@ -105,7 +110,7 @@ function AdminStock() {
                 </div>
             )}
             <Paginacion pagina={pagina} total={total} cambiar={setPagina} />
-            {modal && (
+            {esAdministrador && modal && (
                 <AjustarStockModal
                     producto={modal}
                     alCerrar={close}

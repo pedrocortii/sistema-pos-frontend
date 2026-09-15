@@ -15,14 +15,20 @@ export const useCarritoStore = create(persist(function (set, get) {
         },
 
         agregarProducto: function (producto, cantidad) {
-            const cantidadAAgregar = cantidad || 1;
+            const cantidadAAgregar = Number(cantidad) || 1;
             const items = get().items;
             const existente = items.find(function (item) { return item.productoId === producto.id; });
-            const stockDisponible = Math.max(0, producto.stock - (producto.stockReservado || 0));
+            const stock = Number(producto.stock);
+            const stockReservado = Number(producto.stockReservado || 0);
+            const stockDisponible = Number.isFinite(stock)
+                ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
+                : 0;
             const cantidadActual = existente ? existente.cantidad : 0;
-            const cantidadPermitida = Math.min(cantidadAAgregar, stockDisponible - cantidadActual);
+            const cantidadSolicitada = cantidadActual + cantidadAAgregar;
 
-            if (cantidadPermitida <= 0) {
+            // La validación ocurre antes de modificar el estado: nunca se agrega
+            // una cantidad parcial ni se permite superar el stock disponible.
+            if (cantidadAAgregar <= 0 || cantidadSolicitada > stockDisponible) {
                 return false;
             }
 
@@ -33,7 +39,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                             return {
                                 ...item,
                                 stockDisponible: stockDisponible,
-                                cantidad: item.cantidad + cantidadPermitida
+                                cantidad: cantidadSolicitada
                             };
                         }
                         return item;
@@ -48,7 +54,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                             nombre: producto.nombre,
                             precio: Number(producto.precio),
                             stockDisponible: stockDisponible,
-                            cantidad: cantidadPermitida
+                            cantidad: cantidadAAgregar
                         }
                     ]
                 });
