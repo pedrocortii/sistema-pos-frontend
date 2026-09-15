@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import http, { publicHttp } from "../api/http";
+import { cancelarVentaPublica, cobrarVentaPublica, obtenerComprobante } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
+import MensajeCarga from "../components/MensajeCarga";
+import MensajeError from "../components/MensajeError";
+import { usePeticion } from "../hooks/usePeticion";
 
 function formatearFecha(fechaIso) {
     if (!fechaIso) return "";
@@ -16,23 +19,41 @@ function formatearFecha(fechaIso) {
     });
 }
 
+function obtenerErrorComprobante(error) {
+    return error.response?.data?.mensaje || "No se encontro el comprobante.";
+}
+
+function obtenerErrorPago(error) {
+    return error.response?.data?.mensaje || "No se pudo procesar la operación.";
+}
+
 function ReimprimirComprobante() {
     const { codigo } = useParams();
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const limpiarUltimoComprobante = useCarritoStore(function (estado) { return estado.limpiarUltimoComprobante; });
-    const [venta, setVenta] = useState(null);
-    const [error, setError] = useState("");
-    const [cargando, setCargando] = useState(true);
-    const [pagando, setPagando] = useState(false);
+    const {
+        respuesta: venta,
+        cargando,
+        error: errorComprobante,
+        ejecutar: cargarComprobante,
+    } = usePeticion(obtenerComprobante, { obtenerMensajeError: obtenerErrorComprobante });
+    const {
+        cargando: procesandoPago,
+        error: errorPago,
+        ejecutar: ejecutarPago,
+    } = usePeticion(cobrarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
+    const {
+        cargando: procesandoCancelacion,
+        error: errorCancelacion,
+        ejecutar: ejecutarCancelacion,
+    } = usePeticion(cancelarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
+    const procesando = procesandoPago || procesandoCancelacion;
+    const errorPagoVisible = errorPago || errorCancelacion;
 
     useEffect(function () {
         async function cargar() {
-            setCargando(true);
-            setError("");
             try {
-                const respuesta = await http.get("/ventas/comprobante/" + codigo);
-                const v = respuesta.data.venta;
-                setVenta(v);
+                const v = await cargarComprobante(codigo);
                 if (v.estado === "PENDIENTE") {
                     setUltimoComprobante({
                         codigo: v.codigoComprobante,
@@ -42,60 +63,37 @@ function ReimprimirComprobante() {
                 } else {
                     limpiarUltimoComprobante();
                 }
-            } catch (error) {
-                const mensaje = error.response && error.response.data && error.response.data.mensaje
-                    ? error.response.data.mensaje
-                    : "No se encontro el comprobante.";
-                setError(mensaje);
-            } finally {
-                setCargando(false);
+            } catch {
+                // El hook mantiene el mensaje visible para la persona usuaria.
             }
         }
         cargar();
-    }, [codigo, setUltimoComprobante, limpiarUltimoComprobante]);
+    }, [codigo, cargarComprobante, setUltimoComprobante, limpiarUltimoComprobante]);
 
     async function manejarPagar() {
         if (!venta) return;
 
-        setPagando(true);
-        setError("");
         try {
             // MOCK de pago: en realidad aca iria el redirect a MercadoPago.
             // Cuando MP notifica al webhook del back, el back llama a cobrarVenta.
             // Por ahora simulamos que el pago se concreto y cobramos directo.
-            await publicHttp.patch("/ventas/" + venta.id + "/cobrar", { metodoPago: "MercadoPago" });
+            await ejecutarPago(venta.id);
             // Recargamos el comprobante para mostrar el estado actualizado.
-            const respuesta = await http.get("/ventas/comprobante/" + codigo);
-            const v = respuesta.data.venta;
-            setVenta(v);
+            await cargarComprobante(codigo);
             limpiarUltimoComprobante();
-        } catch (error) {
-            const mensaje = error.response && error.response.data && error.response.data.mensaje
-                ? error.response.data.mensaje
-                : "No se pudo procesar el pago.";
-            setError(mensaje);
-        } finally {
-            setPagando(false);
+        } catch {
+            // El hook mantiene el mensaje visible para la persona usuaria.
         }
     }
 
     async function manejarCancelar() {
         if (!venta) return;
-        setPagando(true);
-        setError("");
         try {
-            await publicHttp.patch("/ventas/" + venta.id + "/cancelar", {});
-            const respuesta = await http.get("/ventas/comprobante/" + codigo);
-            const v = respuesta.data.venta;
-            setVenta(v);
+            await ejecutarCancelacion(venta.id);
+            await cargarComprobante(codigo);
             limpiarUltimoComprobante();
-        } catch (error) {
-            const mensaje = error.response && error.response.data && error.response.data.mensaje
-                ? error.response.data.mensaje
-                : "No se pudo cancelar la venta.";
-            setError(mensaje);
-        } finally {
-            setPagando(false);
+        } catch {
+            // El hook mantiene el mensaje visible para la persona usuaria.
         }
     }
 
@@ -104,13 +102,13 @@ function ReimprimirComprobante() {
             <div className="min-h-screen bg-paper">
                 <EncabezadoCliente />
                 <main className="max-w-2xl mx-auto px-6 py-20 text-center">
-                    <p className="font-mono-ticket text-sm text-ink/60">Cargando comprobante...</p>
+                    <MensajeCarga texto="Cargando comprobante..." />
                 </main>
             </div>
         );
     }
 
-    if (error) {
+    if (errorComprobante) {
         return (
             <div className="min-h-screen bg-paper">
                 <EncabezadoCliente />
@@ -122,7 +120,7 @@ function ReimprimirComprobante() {
                         No se encontro el comprobante
                     </h1>
                     <p className="font-mono-ticket text-sm text-ink/60 mt-3">
-                        {error}
+                        {errorComprobante}
                     </p>
                     <Link
                         to="/catalogo"
@@ -211,9 +209,7 @@ function ReimprimirComprobante() {
                         </span>
                     </div>
 
-                    {error && (
-                        <p className="font-mono-ticket text-sm text-red-600 mt-4 text-center">{error}</p>
-                    )}
+                    {errorPagoVisible && <MensajeError texto={errorPagoVisible} className="mt-4 text-center" />}
 
                     {venta.estado === "COBRADA" && (
                         <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
@@ -225,14 +221,14 @@ function ReimprimirComprobante() {
                         <div className="mt-6 flex flex-col gap-3">
                             <button
                                 onClick={manejarPagar}
-                                disabled={pagando}
+                                disabled={procesando}
                                 className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 transition-colors"
                             >
-                                {pagando ? "Procesando pago..." : "Pagar con billetera virtual"}
+                                {procesando ? "Procesando pago..." : "Pagar con billetera virtual"}
                             </button>
                             <button
                                 onClick={manejarCancelar}
-                                disabled={pagando}
+                                disabled={procesando}
                                 className="font-mono-ticket text-sm uppercase tracking-wide text-red-600 hover:text-red-700 border-b-2 border-red-600 pb-1 self-center"
                             >
                                 Cancelar compra

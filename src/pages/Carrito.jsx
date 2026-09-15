@@ -1,12 +1,25 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { checkoutSchema } from "../validations/checkoutSchema";
-import http from "../api/http";
+import { crearVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
+import MensajeError from "../components/MensajeError";
+import { usePeticion } from "../hooks/usePeticion";
+
+function obtenerErrorCheckout(error) {
+    const datos = error.response?.data;
+
+    if (Array.isArray(datos?.errores) && datos.errores.length > 0) {
+        return datos.errores.map(function (item) { return item.message || item; }).join(". ");
+    }
+    if (Array.isArray(datos?.errors) && datos.errors.length > 0) {
+        return datos.errors.map(function (item) { return item.message || item; }).join(". ");
+    }
+    return datos?.mensaje || "No se pudo completar la compra. Intenta de nuevo.";
+}
 
 function Carrito() {
     const items = useCarritoStore(function (estado) { return estado.items; });
@@ -16,8 +29,7 @@ function Carrito() {
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
 
-    const [error, setError] = useState("");
-    const [cargando, setCargando] = useState(false);
+    const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
     const navegar = useNavigate();
 
@@ -37,9 +49,6 @@ function Carrito() {
     });
 
     async function manejarConfirmarCompra(datosFactura) {
-        setError("");
-        setCargando(true);
-
         const itemsParaEnviar = items.map(function (item) {
             return { productoId: item.productoId, cantidad: item.cantidad };
         });
@@ -56,8 +65,7 @@ function Carrito() {
         };
 
         try {
-            const respuesta = await http.post("/ventas", payload);
-            const venta = respuesta.data.venta;
+            const venta = await confirmarCompra(payload);
             setUltimoComprobante({
                 codigo: venta.codigoComprobante,
                 estado: venta.estado,
@@ -65,22 +73,8 @@ function Carrito() {
             });
             vaciarCarrito();
             navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
-        } catch (error) {
-            const datos = error.response && error.response.data;
-            let mensaje = "No se pudo completar la compra. Intenta de nuevo.";
-
-            if (datos) {
-                if (Array.isArray(datos.errores) && datos.errores.length > 0) {
-                    mensaje = datos.errores.map(function (e) { return e.message || e; }).join(". ");
-                } else if (Array.isArray(datos.errors) && datos.errors.length > 0) {
-                    mensaje = datos.errors.map(function (e) { return e.message || e; }).join(". ");
-                } else if (datos.mensaje) {
-                    mensaje = datos.mensaje;
-                }
-            }
-            setError(mensaje);
-        } finally {
-            setCargando(false);
+        } catch {
+            // El hook mantiene el mensaje visible para la persona usuaria.
         }
     }
 
@@ -235,9 +229,7 @@ function Carrito() {
                                     </div>
                                 </div>
 
-                                {error && (
-                                    <p className="font-mono-ticket text-sm text-red-600 mt-4">{error}</p>
-                                )}
+                                {error && <MensajeError texto={error} className="mt-4" />}
 
                                 <button
                                     type="submit"

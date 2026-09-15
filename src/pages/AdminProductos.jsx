@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { actualizarProducto, crearProducto, eliminarProducto, listarProductos } from "../api/productos";
@@ -6,6 +5,8 @@ import ProductoForm from "../components/ProductoForm";
 import { useModal } from "../hooks/useModal";
 import { useFilter } from "../hooks/useFilter";
 import { usePagination } from "../hooks/usePagination";
+import MensajeCarga from "../components/MensajeCarga";
+import MensajeError from "../components/MensajeError";
 
 const porPagina = 10;
 
@@ -30,8 +31,8 @@ function AdminProductos() {
             else await crearProducto(datos);
             close();
             await cargar();
-        } catch (e) {
-            
+        } catch {
+            // El error queda disponible en usePeticion.
         } finally {
             setGuardando(false);
         }
@@ -42,8 +43,8 @@ function AdminProductos() {
         try {
             await eliminarProducto(producto.id);
             await cargar();
-        } catch (e) {
-            
+        } catch {
+            // El error queda disponible en usePeticion.
         }
     }
 
@@ -133,11 +134,11 @@ export function Cabecera({ etiqueta, titulo }) {
 }
 
 export function Carga() {
-    return <p className="mt-8 font-mono-ticket text-sm text-ink/60">Cargando...</p>;
+    return <MensajeCarga className="mt-8" />;
 }
 
 export function Alerta({ texto }) {
-    return <p className="mt-4 border border-red-200 bg-red-50 p-3 font-mono-ticket text-sm text-red-700">{texto}</p>;
+    return <MensajeError texto={texto} className="mt-4" />;
 }
 
 export function Paginacion({ pagina, total, cambiar }) {

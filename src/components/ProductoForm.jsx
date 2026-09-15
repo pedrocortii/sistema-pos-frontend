@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { X } from "lucide-react";
 import { useProductForm } from "../hooks/useProductForm";
 

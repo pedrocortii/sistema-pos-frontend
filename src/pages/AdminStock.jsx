@@ -3,25 +3,27 @@ import { SlidersHorizontal } from "lucide-react";
 import { ajustarStock, listarStock } from "../api/stock";
 import AjustarStockModal from "../components/AjustarStockModal";
 import { Alerta, Cabecera, Carga, Paginacion } from "./AdminProductos";
-import { useApi } from "../hooks/useApi";
+import { usePeticion } from "../hooks/usePeticion";
 import { useModal } from "../hooks/useModal";
 
 function AdminStock() {
-    const { data: stockResponse = {}, isLoading: cargando, error, execute: cargar } = useApi(listarStock);
+    const { data: stockResponse = {}, isLoading: cargando, error, execute: cargar } = usePeticion(listarStock);
     const { open, close, modalData: modal } = useModal();
     const [bajo, setBajo] = useState(false);
     const [pagina, setPagina] = useState(1);
     const [guardando, setGuardando] = useState(false);
 
     // Extraemos la lista de items del objeto de respuesta del servidor
-    const items = stockResponse?.data || [];
+    const items = stockResponse?.data;
 
     useEffect(function () {
-        cargar();
+        cargar().catch(function () {
+            // El error queda disponible para que la pantalla lo muestre.
+        });
     }, [cargar]);
 
     const datos = useMemo(function () {
-        return items.filter(function (p) {
+        return (items || []).filter(function (p) {
             return !bajo || p.stockDisponible <= 5;
         });
     }, [items, bajo]);
@@ -35,8 +37,8 @@ function AdminStock() {
             await ajustarStock(modal.id, datos);
             close();
             await cargar();
-        } catch (e) {
-            
+        } catch {
+            // El error queda disponible en usePeticion.
         } finally {
             setGuardando(false);
         }

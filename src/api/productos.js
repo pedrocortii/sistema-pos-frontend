@@ -11,6 +11,11 @@ export async function listarProductos(params = {}) {
     return respuesta.data;
 }
 
+export async function obtenerProducto(id) {
+    const respuesta = await http.get("/productos/" + id);
+    return respuesta.data.producto;
+}
+
 export async function crearProducto(datos) {
     const respuesta = await http.post("/productos", datos);
     return respuesta.data.producto;

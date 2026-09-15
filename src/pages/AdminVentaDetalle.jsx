@@ -3,15 +3,17 @@ import { Link, useParams } from "react-router-dom";
 import { cancelarVenta, cobrarVenta, obtenerVenta } from "../api/ventas";
 import { Alerta, Carga } from "./AdminProductos";
 import { Estado } from "./AdminVentas";
-import { useApi } from "../hooks/useApi";
+import { usePeticion } from "../hooks/usePeticion";
 
 function AdminVentaDetalle() {
     const { id } = useParams();
-    const { data: venta, isLoading: cargando, error, execute: cargar } = useApi(obtenerVenta);
+    const { data: venta, isLoading: cargando, error, execute: cargar } = usePeticion(obtenerVenta);
     const [accion, setAccion] = useState(false);
 
     useEffect(function () {
-        cargar(id);
+        cargar(id).catch(function () {
+            // El error queda disponible para que la pantalla lo muestre.
+        });
     }, [id, cargar]);
 
     async function ejecutarAccion(fn) {
@@ -19,7 +21,7 @@ function AdminVentaDetalle() {
         try {
             await fn(id);
             await cargar(id);
-        } catch (e) {
+        } catch {
             // Error handled by useApi
         } finally {
             setAccion(false);
