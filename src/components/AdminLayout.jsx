@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Boxes, LogOut, Menu, Package, ReceiptText, X } from "lucide-react";
+import { Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 const enlaces = [
+    { to: "/admin/venta-rapida", texto: "Venta rápida", icono: ShoppingCart },
     { to: "/admin/productos", texto: "Productos", icono: Package },
     { to: "/admin/stock", texto: "Stock", icono: Boxes },
     { to: "/admin/ventas", texto: "Ventas", icono: ReceiptText }

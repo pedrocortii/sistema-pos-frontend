@@ -5,6 +5,13 @@ export async function crearVenta(datos) {
     return respuesta.data.venta;
 }
 
+// Registra una venta atendida por un cajero. A diferencia de crearVenta,
+// esta operación no requiere los datos del comprador del checkout público.
+export async function crearVentaDirecta(datos) {
+    const respuesta = await http.post("/ventas/directa", datos);
+    return respuesta.data.venta || respuesta.data;
+}
+
 export async function obtenerComprobante(codigo) {
     const respuesta = await http.get("/ventas/comprobante/" + codigo);
     return respuesta.data.venta;
