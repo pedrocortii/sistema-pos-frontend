@@ -15,7 +15,7 @@ export function useAuth() {
 
             const destinos = {
                 Administrador: "/admin/productos",
-                Cajero: "/admin/ventas",
+                Cajero: "/admin/venta-rapida",
                 Cliente: "/catalogo"
             };
 
