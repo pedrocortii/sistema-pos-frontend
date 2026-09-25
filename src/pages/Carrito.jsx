@@ -1,9 +1,25 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import http from "../api/http";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { checkoutSchema } from "../validations/checkoutSchema";
+import { crearVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
+import MensajeError from "../components/MensajeError";
+import { usePeticion } from "../hooks/usePeticion";
+
+function obtenerErrorCheckout(error) {
+    const datos = error.response?.data;
+
+    if (Array.isArray(datos?.errores) && datos.errores.length > 0) {
+        return datos.errores.map(function (item) { return item.message || item; }).join(". ");
+    }
+    if (Array.isArray(datos?.errors) && datos.errors.length > 0) {
+        return datos.errors.map(function (item) { return item.message || item; }).join(". ");
+    }
+    return datos?.mensaje || "No se pudo completar la compra. Intenta de nuevo.";
+}
 
 function Carrito() {
     const items = useCarritoStore(function (estado) { return estado.items; });
@@ -13,45 +29,26 @@ function Carrito() {
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
 
-    const [error, setError] = useState("");
-    const [cargando, setCargando] = useState(false);
-
-    // Datos fiscales del cliente para la factura (cliente anonimo).
-    const [datosFactura, setDatosFactura] = useState({
-        nombre: "",
-        apellido: "",
-        dni: "",
-        email: "",
-        confirmarEmail: ""
-    });
+    const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
     const navegar = useNavigate();
 
-    function manejarCambioDato(campo, valor) {
-        setDatosFactura(function (prev) {
-            return { ...prev, [campo]: valor };
-        });
-    }
-
-    function datosFacturaValidos() {
-        return datosFactura.nombre.trim() !== ""
-            && datosFactura.apellido.trim() !== ""
-            && datosFactura.dni.trim() !== ""
-            && datosFactura.email.trim() !== ""
-            && datosFactura.confirmarEmail.trim() !== ""
-            && datosFactura.email.trim().toLowerCase() === datosFactura.confirmarEmail.trim().toLowerCase();
-    }
-
-    async function manejarConfirmarCompra() {
-        setError("");
-
-        if (!datosFacturaValidos()) {
-            setError("Completa todos los datos y verifica que los emails coincidan antes de confirmar.");
-            return;
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
+        resolver: yupResolver(checkoutSchema),
+        defaultValues: {
+            nombre: "",
+            apellido: "",
+            dni: "",
+            email: "",
+            confirmarEmail: ""
         }
+    });
 
-        setCargando(true);
-
+    async function manejarConfirmarCompra(datosFactura) {
         const itemsParaEnviar = items.map(function (item) {
             return { productoId: item.productoId, cantidad: item.cantidad };
         });
@@ -68,33 +65,16 @@ function Carrito() {
         };
 
         try {
-            const respuesta = await http.post("/ventas", payload);
-            const venta = respuesta.data.venta;
+            const venta = await confirmarCompra(payload);
             setUltimoComprobante({
                 codigo: venta.codigoComprobante,
                 estado: venta.estado,
                 total: venta.total
             });
             vaciarCarrito();
-            // Navegamos por URL para que recargar siga mostrando el comprobante
-            // (la pantalla lo trae del back usando el codigo de la URL).
             navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
-        } catch (error) {
-            const datos = error.response && error.response.data;
-            let mensaje = "No se pudo completar la compra. Intenta de nuevo.";
-
-            if (datos) {
-                if (Array.isArray(datos.errores) && datos.errores.length > 0) {
-                    mensaje = datos.errores.map(function (e) { return e.message || e; }).join(". ");
-                } else if (Array.isArray(datos.errors) && datos.errors.length > 0) {
-                    mensaje = datos.errors.map(function (e) { return e.message || e; }).join(". ");
-                } else if (datos.mensaje) {
-                    mensaje = datos.mensaje;
-                }
-            }
-            setError(mensaje);
-        } finally {
-            setCargando(false);
+        } catch {
+            // El hook mantiene el mensaje visible para la persona usuaria.
         }
     }
 
@@ -188,84 +168,79 @@ function Carrito() {
                                 No necesitas crear cuenta. Solo completa estos datos para emitir el comprobante.
                             </p>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                        Nombre
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={datosFactura.nombre}
-                                        onChange={function (e) { manejarCambioDato("nombre", e.target.value); }}
-                                        required
-                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                    />
+                            <form onSubmit={handleSubmit(manejarConfirmarCompra)}>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col">
+                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                            Nombre
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register("nombre")}
+                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                        />
+                                        {errors.nombre && <p className="mt-1 text-xs text-red-600">{errors.nombre.message}</p>}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                            Apellido
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register("apellido")}
+                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                        />
+                                        {errors.apellido && <p className="mt-1 text-xs text-red-600">{errors.apellido.message}</p>}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                            DNI
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register("dni")}
+                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                        />
+                                        {errors.dni && <p className="mt-1 text-xs text-red-600">{errors.dni.message}</p>}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                            Email
+                                        </label>
+                                        <input
+                                            type="email"
+                                            {...register("email")}
+                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                            placeholder="tucorreo@ejemplo.com"
+                                        />
+                                        {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                            Confirmar email
+                                        </label>
+                                        <input
+                                            type="email"
+                                            {...register("confirmarEmail")}
+                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                            placeholder="Repite tu correo"
+                                        />
+                                        {errors.confirmarEmail && <p className="mt-1 text-xs text-red-600">{errors.confirmarEmail.message}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                        Apellido
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={datosFactura.apellido}
-                                        onChange={function (e) { manejarCambioDato("apellido", e.target.value); }}
-                                        required
-                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                        DNI
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={datosFactura.dni}
-                                        onChange={function (e) { manejarCambioDato("dni", e.target.value); }}
-                                        required
-                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={datosFactura.email}
-                                        onChange={function (e) { manejarCambioDato("email", e.target.value); }}
-                                        required
-                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                        placeholder="tucorreo@ejemplo.com"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                        Confirmar email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={datosFactura.confirmarEmail}
-                                        onChange={function (e) { manejarCambioDato("confirmarEmail", e.target.value); }}
-                                        required
-                                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                        placeholder="Repite tu correo"
-                                    />
-                                </div>
-                            </div>
+
+                                {error && <MensajeError texto={error} className="mt-4" />}
+
+                                <button
+                                    type="submit"
+                                    disabled={cargando}
+                                    className="w-full mt-6 bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-4 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <ShoppingBag size={18} />
+                                    {cargando ? "Procesando..." : "Confirmar compra"}
+                                </button>
+                            </form>
                         </section>
-
-                        {error && (
-                            <p className="font-mono-ticket text-sm text-red-600 mt-4">{error}</p>
-                        )}
-
-                        <button
-                            onClick={manejarConfirmarCompra}
-                            disabled={cargando}
-                            className="w-full mt-6 bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-4 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <ShoppingBag size={18} />
-                            {cargando ? "Procesando..." : "Confirmar compra"}
-                        </button>
                     </>
                 )}
             </main>

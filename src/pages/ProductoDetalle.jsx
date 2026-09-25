@@ -1,49 +1,58 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
-import http from "../api/http";
+import { obtenerProducto } from "../api/productos";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import SelectorCantidad from "../components/SelectorCantidad";
+import MensajeCarga from "../components/MensajeCarga";
+import MensajeError from "../components/MensajeError";
+import { usePeticion } from "../hooks/usePeticion";
+
+function obtenerErrorProducto() {
+    return "No se pudo cargar el producto.";
+}
 
 function ProductoDetalle() {
     const { id } = useParams();
     const navegar = useNavigate();
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
 
-    const [producto, setProducto] = useState(null);
     const [cantidad, setCantidad] = useState(1);
-    const [cargando, setCargando] = useState(true);
-    const [error, setError] = useState("");
     const [agregado, setAgregado] = useState(false);
+    const [avisoStock, setAvisoStock] = useState("");
+    const { respuesta: producto, cargando, error, ejecutar } = usePeticion(obtenerProducto, { obtenerMensajeError: obtenerErrorProducto });
 
     useEffect(function () {
         async function cargarProducto() {
-            setCargando(true);
-            setError("");
             try {
-                const respuesta = await http.get("/productos/" + id);
-                setProducto(respuesta.data.producto);
+                await ejecutar(id);
                 setCantidad(1);
             } catch {
-                setError("No se pudo cargar el producto.");
-            } finally {
-                setCargando(false);
+                // El hook mantiene el mensaje visible para la persona usuaria.
             }
         }
 
         cargarProducto();
-    }, [id]);
+    }, [id, ejecutar]);
 
     function manejarAgregar() {
         if (agregarProducto(producto, cantidad)) {
             setAgregado(true);
+            setAvisoStock("");
+        } else {
+            setAgregado(false);
+            setAvisoStock("No hay stock suficiente para agregar esa cantidad al carrito.");
         }
     }
 
     // El cliente ve el stock disponible = stock fisico - stock reservado
     // por ventas PENDIENTES. El back ya devuelve ambos campos.
-    const stockDisponible = producto ? producto.stock - (producto.stockReservado || 0) : 0;
+    const stock = producto ? Number(producto.stock) : 0;
+    const stockReservado = producto ? Number(producto.stockReservado || 0) : 0;
+    const stockDisponible = Number.isFinite(stock)
+        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
+        : 0;
 
     return (
         <div className="min-h-screen bg-paper">
@@ -55,13 +64,9 @@ function ProductoDetalle() {
                     Volver al catalogo
                 </Link>
 
-                {cargando && (
-                    <p className="font-mono-ticket text-sm text-ink/60 mt-8">Cargando...</p>
-                )}
+                {cargando && <MensajeCarga className="mt-8" />}
 
-                {error && (
-                    <p className="font-mono-ticket text-sm text-red-600 mt-8">{error}</p>
-                )}
+                {error && <MensajeError texto={error} className="mt-8" />}
 
                 {producto && (
                     <div className="bg-ticket border border-line p-8 mt-6">
@@ -94,7 +99,7 @@ function ProductoDetalle() {
                                     <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
                                         Cantidad
                                     </label>
-                                    <SelectorCantidad cantidad={cantidad} onCambiar={setCantidad} maximo={stockDisponible} />
+                                    <SelectorCantidad cantidad={cantidad} onCambiar={function (valor) { setAvisoStock(""); setCantidad(valor); }} maximo={stockDisponible} />
                                 </div>
 
                                 <button
@@ -105,6 +110,8 @@ function ProductoDetalle() {
                                     <ShoppingCart size={18} />
                                     Agregar al carrito
                                 </button>
+
+                                {avisoStock && <p className="mt-3 text-center font-mono-ticket text-sm text-red-600" role="alert">{avisoStock}</p>}
 
                                 {agregado && (
                                     <div className="mt-4 text-center">

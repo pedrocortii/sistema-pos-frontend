@@ -1,8 +1,19 @@
 import http from "./http";
 
-export async function listarProductos() {
-    const respuesta = await http.get("/productos", { params: { page: 1, limit: 100 } });
+export async function listarProductos(params = {}) {
+    const respuesta = await http.get("/productos", {
+        params: {
+            page: params.page || 1,
+            limit: params.limit || 10,
+            ...params
+        }
+    });
     return respuesta.data;
+}
+
+export async function obtenerProducto(id) {
+    const respuesta = await http.get("/productos/" + id);
+    return respuesta.data.producto;
 }
 
 export async function crearProducto(datos) {

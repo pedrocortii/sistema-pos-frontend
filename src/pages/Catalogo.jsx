@@ -1,35 +1,36 @@
 import { useEffect, useState } from "react";
-import http from "../api/http";
+import { listarProductos } from "../api/productos";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import ProductoCatalogoCard from "../components/ProductoCatalogoCard";
+import MensajeCarga from "../components/MensajeCarga";
+import MensajeError from "../components/MensajeError";
+import { usePeticion } from "../hooks/usePeticion";
+
+function obtenerErrorCatalogo() {
+    return "No se pudieron cargar los productos.";
+}
 
 function Catalogo() {
-    const [productos, setProductos] = useState([]);
     const [paginacion, setPaginacion] = useState(null);
     const [pagina, setPagina] = useState(1);
-    const [cargando, setCargando] = useState(true);
-    const [error, setError] = useState("");
+    const { respuesta, cargando, error, ejecutar } = usePeticion(listarProductos, { obtenerMensajeError: obtenerErrorCatalogo });
+    const productos = respuesta?.data || [];
 
     useEffect(function () {
         async function cargarProductos() {
-            setCargando(true);
-            setError("");
             try {
-                const respuesta = await http.get("/productos", { params: { page: pagina, limit: 9 } });
-                setProductos(respuesta.data.data);
+                const respuesta = await ejecutar({ page: pagina, limit: 9 });
                 setPaginacion({
-                    paginaActual: respuesta.data.page,
-                    totalPaginas: Math.ceil(respuesta.data.total / respuesta.data.limit)
+                    paginaActual: respuesta.page,
+                    totalPaginas: Math.ceil(respuesta.total / respuesta.limit)
                 });
             } catch {
-                setError("No se pudieron cargar los productos.");
-            } finally {
-                setCargando(false);
+                // El hook mantiene el mensaje visible para la persona usuaria.
             }
         }
 
         cargarProductos();
-    }, [pagina]);
+    }, [pagina, ejecutar]);
 
     return (
         <div className="min-h-screen bg-paper">
@@ -43,13 +44,9 @@ function Catalogo() {
                     Nuestros productos
                 </h1>
 
-                {cargando && (
-                    <p className="font-mono-ticket text-sm text-ink/60">Cargando productos...</p>
-                )}
+                {cargando && <MensajeCarga texto="Cargando productos..." />}
 
-                {error && (
-                    <p className="font-mono-ticket text-sm text-red-600">{error}</p>
-                )}
+                {error && <MensajeError texto={error} />}
 
                 {!cargando && !error && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

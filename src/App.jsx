@@ -12,6 +12,7 @@ import AdminProductos from "./pages/AdminProductos";
 import AdminStock from "./pages/AdminStock";
 import AdminVentas from "./pages/AdminVentas";
 import AdminVentaDetalle from "./pages/AdminVentaDetalle";
+import AdminVentaRapida from "./pages/AdminVentaRapida";
 import { useAuthStore } from "./store/authStore";
 
 function RedireccionRaiz() {
@@ -47,6 +48,7 @@ function App() {
                 <Route element={<RutaProtegida rolesPermitidos={["Administrador", "Cajero"]} />}>
                     <Route path="/admin" element={<AdminLayout />}>
                         <Route index element={<Navigate to="productos" replace />} />
+                        <Route path="venta-rapida" element={<AdminVentaRapida />} />
                         <Route
                             path="productos"
                             element={<AdminProductos />}
