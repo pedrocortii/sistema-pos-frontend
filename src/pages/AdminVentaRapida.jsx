@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock3, Minus, Plus, QrCode, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { listarProductos } from "../api/productos";
-import { crearVentaDirecta } from "../api/ventas";
+import { cancelarVenta, consultarEstadoQr, crearVentaDirecta } from "../api/ventas";
 import { usePeticion } from "../hooks/usePeticion";
 import { useAuthStore } from "../store/authStore";
 import { Alerta, Cabecera, Carga } from "./AdminProductos";
@@ -40,6 +41,9 @@ function AdminVentaRapida() {
         }
     });
     const [ultimaVenta, setUltimaVenta] = useState(null);
+    const [pagoQr, setPagoQr] = useState(null);
+    const [errorQr, setErrorQr] = useState("");
+    const [cancelandoQr, setCancelandoQr] = useState(false);
     const {
         data: productosResponse,
         isLoading: cargandoProductos,
@@ -63,6 +67,49 @@ function AdminVentaRapida() {
     useEffect(function () {
         localStorage.setItem(clavePersistencia, JSON.stringify({ items: items, metodoPago: metodoPago }));
     }, [clavePersistencia, items, metodoPago]);
+
+    const pagoQrVentaId = pagoQr?.ventaId;
+
+    useEffect(function () {
+        if (!pagoQrVentaId) return undefined;
+
+        let activo = true;
+        let temporizador;
+
+        async function consultarPago() {
+            try {
+                const resultado = await consultarEstadoQr(pagoQrVentaId);
+                if (!activo) return;
+
+                if (resultado.venta.estado === "COBRADA") {
+                    setUltimaVenta(resultado.venta);
+                    setPagoQr(null);
+                    await cargarProductos({ page: 1, limit: 100 });
+                    return;
+                }
+
+                if (resultado.venta.estado === "CANCELADA") {
+                    setErrorQr("El QR venció o fue cancelado. La venta quedó anulada.");
+                    setPagoQr(null);
+                    return;
+                }
+
+                setPagoQr(function (actual) {
+                    return actual ? { ...actual, estado: resultado.pago.estado } : actual;
+                });
+            } catch {
+                // La siguiente consulta vuelve a comprobar el estado con Mercado Pago.
+            }
+
+            if (activo) temporizador = setTimeout(consultarPago, 3000);
+        }
+
+        consultarPago();
+        return function () {
+            activo = false;
+            clearTimeout(temporizador);
+        };
+    }, [pagoQrVentaId, cargarProductos]);
 
     const productos = useMemo(function () {
         return productosResponse?.data || productosResponse?.productos || [];
@@ -120,20 +167,47 @@ function AdminVentaRapida() {
     }
 
     async function confirmarVenta() {
-        if (!items.length || registrando) return;
+        if (!items.length || registrando || pagoQr) return;
         try {
-            const venta = await registrarVenta({
+            const resultado = await registrarVenta({
                 items: items.map(function (item) {
                     return { productoId: item.productoId, cantidad: item.cantidad };
                 }),
                 metodoPago: metodoPago,
                 cobrar: true
             });
-            setUltimaVenta(venta);
+            setUltimaVenta(null);
+            setErrorQr("");
+            if (resultado.pago?.qrData) {
+                setPagoQr({
+                    ventaId: resultado.venta.id,
+                    codigoComprobante: resultado.venta.codigoComprobante,
+                    total: Number(resultado.venta.total),
+                    qrData: resultado.pago.qrData,
+                    estado: resultado.pago.estado
+                });
+            } else {
+                setUltimaVenta(resultado.venta);
+            }
             setItems([]);
-            await cargarProductos({ page: 1, limit: 100 });
+            if (!resultado.pago) await cargarProductos({ page: 1, limit: 100 });
         } catch {
             // El hook deja el error visible para el cajero.
+        }
+    }
+
+    async function cancelarPagoQr() {
+        if (!pagoQr || cancelandoQr) return;
+        setCancelandoQr(true);
+        try {
+            await cancelarVenta(pagoQr.ventaId);
+            setPagoQr(null);
+            setErrorQr("QR cancelado. La venta quedó anulada y el stock fue liberado.");
+            await cargarProductos({ page: 1, limit: 100 });
+        } catch (error) {
+            setErrorQr(error.response?.data?.mensaje || "No se pudo cancelar el QR.");
+        } finally {
+            setCancelandoQr(false);
         }
     }
 
@@ -153,6 +227,39 @@ function AdminVentaRapida() {
                     </div>
                 </div>
             )}
+
+            {pagoQr && (
+                <div className="mt-6 border border-line bg-ticket p-5 sm:p-6" role="status" aria-live="polite">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/55">Cobro por Mercado Pago</p>
+                            <h2 className="mt-1 font-display text-2xl text-ink">Escaneá para pagar</h2>
+                            <p className="mt-1 font-mono-ticket text-sm text-ink/60">Venta {pagoQr.codigoComprobante}</p>
+                        </div>
+                        <span className="flex items-center gap-1.5 font-mono-ticket text-xs text-ink/60">
+                            <Clock3 size={15} aria-hidden="true" />
+                            {pagoQr.estado === "created" ? "Esperando pago" : "Procesando pago"}
+                        </span>
+                    </div>
+
+                    <div className="mt-5 flex flex-col items-center gap-4 border-y border-line py-5 sm:flex-row sm:justify-center sm:gap-8">
+                        <div className="bg-white p-3">
+                            <QRCodeSVG value={pagoQr.qrData} size={208} level="M" includeMargin />
+                        </div>
+                        <div className="text-center sm:text-left">
+                            <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/55">Total en pesos</p>
+                            <p className="mt-1 font-mono-ticket text-3xl text-forest">{formatoMoneda.format(pagoQr.total)}</p>
+                        </div>
+                    </div>
+
+                    <button type="button" disabled={cancelandoQr} onClick={cancelarPagoQr} className="mt-4 inline-flex cursor-pointer items-center gap-2 border border-line px-3 py-2 font-mono-ticket text-xs uppercase tracking-wide text-ink hover:bg-paper disabled:opacity-50">
+                        <X size={15} aria-hidden="true" />
+                        {cancelandoQr ? "Cancelando..." : "Cancelar QR"}
+                    </button>
+                </div>
+            )}
+
+            {errorQr && <Alerta texto={errorQr} />}
 
             {(errorProductos || errorVenta) && <Alerta texto={errorProductos || errorVenta} />}
 
@@ -204,7 +311,7 @@ function AdminVentaRapida() {
                                 <option value="Tarjeta">Tarjeta</option>
                                 <option value="MercadoPago">Mercado Pago</option>
                             </select>
-                            <button type="button" disabled={registrando} onClick={confirmarVenta} className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 bg-forest py-3 font-mono-ticket text-sm uppercase tracking-wide text-paper hover:bg-forest-dark disabled:cursor-wait disabled:opacity-60"><ShoppingCart size={17} aria-hidden="true" />{registrando ? "Registrando..." : "Cobrar y confirmar venta"}</button>
+                            <button type="button" disabled={registrando || Boolean(pagoQr)} onClick={confirmarVenta} className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 bg-forest py-3 font-mono-ticket text-sm uppercase tracking-wide text-paper hover:bg-forest-dark disabled:cursor-wait disabled:opacity-60">{metodoPago === "MercadoPago" ? <QrCode size={17} aria-hidden="true" /> : <ShoppingCart size={17} aria-hidden="true" />}{registrando ? "Generando cobro..." : metodoPago === "MercadoPago" ? "Generar QR y cobrar" : "Cobrar y confirmar venta"}</button>
                         </div>
                     </>}
                 </aside>
