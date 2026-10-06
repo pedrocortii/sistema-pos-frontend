@@ -9,16 +9,12 @@ export async function crearVenta(datos) {
 // esta operación no requiere los datos del comprador del checkout público.
 export async function crearVentaDirecta(datos) {
     const respuesta = await http.post("/ventas/directa", datos);
-    return respuesta.data.venta || respuesta.data;
+    return respuesta.data;
 }
 
 export async function obtenerComprobante(codigo) {
     const respuesta = await http.get("/ventas/comprobante/" + codigo);
     return respuesta.data.venta;
-}
-
-export async function cobrarVentaPublica(id) {
-    await publicHttp.patch("/ventas/" + id + "/cobrar", { metodoPago: "MercadoPago" });
 }
 
 export async function cancelarVentaPublica(id) {
@@ -33,6 +29,11 @@ export async function listarVentas(filtros) {
 export async function obtenerVenta(id) {
     const respuesta = await http.get("/ventas/" + id);
     return respuesta.data.venta;
+}
+
+export async function consultarEstadoQr(id) {
+    const respuesta = await http.get("/ventas/" + id + "/pago-qr");
+    return respuesta.data;
 }
 
 export async function cobrarVenta(id) {
