@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
-import { cancelarVentaPublica, obtenerComprobante } from "../api/ventas";
+import { cancelarVentaPublica, cobrarVentaPublica, obtenerComprobante } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import MensajeCarga from "../components/MensajeCarga";
@@ -24,7 +23,7 @@ function obtenerErrorComprobante(error) {
     return error.response?.data?.mensaje || "No se encontro el comprobante.";
 }
 
-function obtenerErrorOperacion(error) {
+function obtenerErrorPago(error) {
     return error.response?.data?.mensaje || "No se pudo procesar la operación.";
 }
 
@@ -39,12 +38,17 @@ function ReimprimirComprobante() {
         ejecutar: cargarComprobante,
     } = usePeticion(obtenerComprobante, { obtenerMensajeError: obtenerErrorComprobante });
     const {
+        cargando: procesandoPago,
+        error: errorPago,
+        ejecutar: ejecutarPago,
+    } = usePeticion(cobrarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
+    const {
         cargando: procesandoCancelacion,
         error: errorCancelacion,
         ejecutar: ejecutarCancelacion,
-    } = usePeticion(cancelarVentaPublica, { obtenerMensajeError: obtenerErrorOperacion });
-    const procesando = procesandoCancelacion;
-    const errorOperacionVisible = errorCancelacion;
+    } = usePeticion(cancelarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
+    const procesando = procesandoPago || procesandoCancelacion;
+    const errorPagoVisible = errorPago || errorCancelacion;
 
     useEffect(function () {
         async function cargar() {
@@ -92,6 +96,22 @@ function ReimprimirComprobante() {
         };
     }, [codigo, venta?.estado, cargarComprobante, limpiarUltimoComprobante]);
 
+    async function manejarPagar() {
+        if (!venta) return;
+
+        try {
+            // MOCK de pago: en realidad aca iria el redirect a MercadoPago.
+            // Cuando MP notifica al webhook del back, el back llama a cobrarVenta.
+            // Por ahora simulamos que el pago se concreto y cobramos directo.
+            await ejecutarPago(venta.id);
+            // Recargamos el comprobante para mostrar el estado actualizado.
+            await cargarComprobante(codigo);
+            limpiarUltimoComprobante();
+        } catch {
+            // El hook mantiene el mensaje visible para la persona usuaria.
+        }
+    }
+
     async function manejarCancelar() {
         if (!venta) return;
         try {
@@ -134,17 +154,6 @@ function ReimprimirComprobante() {
                     >
                         Ir al catalogo
                     </Link>
-                </main>
-            </div>
-        );
-    }
-
-    if (!venta) {
-        return (
-            <div className="min-h-screen bg-paper">
-                <EncabezadoCliente />
-                <main className="max-w-2xl mx-auto px-6 py-20 text-center">
-                    <MensajeCarga texto="Cargando comprobante..." />
                 </main>
             </div>
         );
@@ -226,18 +235,7 @@ function ReimprimirComprobante() {
                         </span>
                     </div>
 
-                    {venta.estado === "PENDIENTE" && venta.pagoQrData && (
-                        <div className="mt-6 border-t border-dashed border-line pt-6 text-center">
-                            <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                Escaneá para completar el pago
-                            </p>
-                            <div className="mx-auto mt-4 inline-block bg-white p-3">
-                                <QRCodeSVG value={venta.pagoQrData} size={208} level="M" includeMargin />
-                            </div>
-                        </div>
-                    )}
-
-                    {errorOperacionVisible && <MensajeError texto={errorOperacionVisible} className="mt-4 text-center" />}
+                    {errorPagoVisible && <MensajeError texto={errorPagoVisible} className="mt-4 text-center" />}
 
                     {venta.estado === "COBRADA" && (
                         <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
@@ -247,6 +245,13 @@ function ReimprimirComprobante() {
 
                     {venta.estado === "PENDIENTE" && (
                         <div className="mt-6 flex flex-col gap-3">
+                            <button
+                                onClick={manejarPagar}
+                                disabled={procesando}
+                                className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 transition-colors"
+                            >
+                                {procesando ? "Procesando pago..." : "Pagar con billetera virtual"}
+                            </button>
                             <button
                                 onClick={manejarCancelar}
                                 disabled={procesando}

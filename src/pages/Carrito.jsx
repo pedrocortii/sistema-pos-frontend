@@ -55,7 +55,6 @@ function Carrito() {
 
         const payload = {
             items: itemsParaEnviar,
-            metodoPago: "MercadoPago",
             cliente: {
                 nombre: datosFactura.nombre.trim(),
                 apellido: datosFactura.apellido.trim(),
@@ -67,16 +66,6 @@ function Carrito() {
 
         try {
             const venta = await confirmarCompra(payload);
-            if (venta?.pago?.qrData) {
-                setUltimoComprobante({
-                    codigo: venta.codigoComprobante,
-                    estado: venta.estado,
-                    total: venta.total
-                });
-                vaciarCarrito();
-                navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
-                return;
-            }
             setUltimoComprobante({
                 codigo: venta.codigoComprobante,
                 estado: venta.estado,
@@ -241,15 +230,6 @@ function Carrito() {
                                 </div>
 
                                 {error && <MensajeError texto={error} className="mt-4" />}
-
-                                <div className="mt-6 border border-line px-4 py-3">
-                                    <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                        Medio de pago
-                                    </p>
-                                    <p className="font-mono-ticket text-sm text-ink mt-1">
-                                        Billetera virtual (Mercado Pago)
-                                    </p>
-                                </div>
 
                                 <button
                                     type="submit"
