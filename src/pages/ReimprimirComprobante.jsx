@@ -66,6 +66,32 @@ function ReimprimirComprobante() {
         cargar();
     }, [codigo, cargarComprobante, setUltimoComprobante, limpiarUltimoComprobante]);
 
+    useEffect(function () {
+        if (venta?.estado !== "PENDIENTE") return undefined;
+
+        let activo = true;
+        let temporizador;
+
+        async function revisarPago() {
+            try {
+                const ventaActualizada = await cargarComprobante(codigo);
+                if (activo && ventaActualizada.estado !== "PENDIENTE") {
+                    limpiarUltimoComprobante();
+                }
+            } catch {
+                // El siguiente intento vuelve a consultar el estado del pago.
+            }
+
+            if (activo) temporizador = setTimeout(revisarPago, 4000);
+        }
+
+        temporizador = setTimeout(revisarPago, 4000);
+        return function () {
+            activo = false;
+            clearTimeout(temporizador);
+        };
+    }, [codigo, venta?.estado, cargarComprobante, limpiarUltimoComprobante]);
+
     async function manejarCancelar() {
         if (!venta) return;
         try {
@@ -215,7 +241,7 @@ function ReimprimirComprobante() {
 
                     {venta.estado === "COBRADA" && (
                         <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
-                            Compra cobrada con éxito. Tu comprobante ya está disponible en esta pantalla.
+                            Pago realizado con éxito. Tu comprobante está disponible en esta pantalla.
                         </div>
                     )}
 

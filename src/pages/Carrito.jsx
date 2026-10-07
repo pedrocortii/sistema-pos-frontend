@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { checkoutSchema } from "../validations/checkoutSchema";
@@ -29,8 +28,6 @@ function Carrito() {
     const vaciarCarrito = useCarritoStore(function (estado) { return estado.vaciarCarrito; });
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
-    const [pagoQr, setPagoQr] = useState(null);
-    const [codigoComprobantePendiente, setCodigoComprobantePendiente] = useState(null);
 
     const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
@@ -71,9 +68,13 @@ function Carrito() {
         try {
             const venta = await confirmarCompra(payload);
             if (venta?.pago?.qrData) {
-                setPagoQr(venta.pago);
-                setCodigoComprobantePendiente(venta.codigoComprobante);
+                setUltimoComprobante({
+                    codigo: venta.codigoComprobante,
+                    estado: venta.estado,
+                    total: venta.total
+                });
                 vaciarCarrito();
+                navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
                 return;
             }
             setUltimoComprobante({
@@ -93,53 +94,14 @@ function Carrito() {
             <EncabezadoCliente />
 
             <main className="max-w-3xl mx-auto px-6 py-10">
-                {pagoQr && (
-                    <div className="bg-ticket border border-line p-6 mb-8 text-center">
-                        <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
-                            Paga con billetera virtual
-                        </p>
-                        <h2 className="font-display text-3xl text-ink mt-2 mb-4">
-                            Escaneá este QR
-                        </h2>
+                <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
+                    Tu compra
+                </p>
+                <h1 className="font-display text-4xl text-ink mt-1 mb-8">
+                    Carrito
+                </h1>
 
-                        <div className="flex justify-center mb-4">
-                            <img
-                                src={"https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(pagoQr.qrData)}
-                                alt="Código QR de pago"
-                                className="w-60 h-60 border border-line bg-white p-3"
-                            />
-                        </div>
-
-                        <p className="font-mono-ticket text-sm text-ink/70 mb-5">
-                            Este QR expira en 15 minutos. Cuando se confirme el pago, te llevaré al comprobante.
-                        </p>
-
-                        <button
-                            type="button"
-                            onClick={function () {
-                                if (codigoComprobantePendiente) {
-                                    navegar("/comprobante/" + codigoComprobantePendiente, { replace: true });
-                                }
-                            }}
-                            className="bg-forest hover:bg-forest-dark text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 px-8 transition-colors"
-                        >
-                            Ir al comprobante
-                        </button>
-                    </div>
-                )}
-
-                {!pagoQr && (
-                    <>
-                        <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
-                            Tu compra
-                        </p>
-                        <h1 className="font-display text-4xl text-ink mt-1 mb-8">
-                            Carrito
-                        </h1>
-                    </>
-                )}
-
-                {items.length === 0 && !pagoQr && (
+                {items.length === 0 && (
                     <div className="text-center py-16">
                         <p className="font-mono-ticket text-sm text-ink/60 mb-6">
                             Todavia no agregaste productos.
