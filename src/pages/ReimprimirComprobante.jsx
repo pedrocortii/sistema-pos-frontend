@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { cancelarVentaPublica, cobrarVentaPublica, obtenerComprobante } from "../api/ventas";
+import QRCode from "qrcode";
+import { cancelarVentaPublica, obtenerComprobante } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import MensajeCarga from "../components/MensajeCarga";
@@ -29,31 +30,30 @@ function obtenerErrorPago(error) {
 
 function ReimprimirComprobante() {
     const { codigo } = useParams();
+    const [urlQr, setUrlQr] = useState("");
+    const [ventaLocal, setVentaLocal] = useState(null);
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const limpiarUltimoComprobante = useCarritoStore(function (estado) { return estado.limpiarUltimoComprobante; });
     const {
-        respuesta: venta,
+        respuesta: respuestaVenta,
         cargando,
         error: errorComprobante,
         ejecutar: cargarComprobante,
     } = usePeticion(obtenerComprobante, { obtenerMensajeError: obtenerErrorComprobante });
     const {
-        cargando: procesandoPago,
-        error: errorPago,
-        ejecutar: ejecutarPago,
-    } = usePeticion(cobrarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
-    const {
         cargando: procesandoCancelacion,
         error: errorCancelacion,
         ejecutar: ejecutarCancelacion,
     } = usePeticion(cancelarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
-    const procesando = procesandoPago || procesandoCancelacion;
-    const errorPagoVisible = errorPago || errorCancelacion;
+    const venta = ventaLocal || respuestaVenta;
+    const procesando = procesandoCancelacion;
+    const errorPagoVisible = errorCancelacion;
 
     useEffect(function () {
         async function cargar() {
             try {
                 const v = await cargarComprobante(codigo);
+                setVentaLocal(v);
                 if (v.estado === "PENDIENTE") {
                     setUltimoComprobante({
                         codigo: v.codigoComprobante,
@@ -73,44 +73,50 @@ function ReimprimirComprobante() {
     useEffect(function () {
         if (venta?.estado !== "PENDIENTE") return undefined;
 
-        let activo = true;
-        let temporizador;
-
-        async function revisarPago() {
-            try {
-                const ventaActualizada = await cargarComprobante(codigo);
-                if (activo && ventaActualizada.estado !== "PENDIENTE") {
+        const interval = window.setInterval(function () {
+            obtenerComprobante(codigo).then(function (v) {
+                setVentaLocal(v);
+                if (v.estado === "PENDIENTE") {
+                    setUltimoComprobante({
+                        codigo: v.codigoComprobante,
+                        estado: v.estado,
+                        total: v.total
+                    });
+                } else {
                     limpiarUltimoComprobante();
                 }
-            } catch {
-                // El siguiente intento vuelve a consultar el estado del pago.
-            }
+            }).catch(function () {
+                // La petición siguiente se hará nuevamente en el próximo ciclo.
+            });
+        }, 5000);
 
-            if (activo) temporizador = setTimeout(revisarPago, 4000);
+        return function () { window.clearInterval(interval); };
+    }, [codigo, venta?.estado, setUltimoComprobante, limpiarUltimoComprobante]);
+
+    useEffect(function () {
+        let activo = true;
+        setUrlQr("");
+
+        if (!venta?.pagoQrData) return undefined;
+
+        const contenido = venta.pagoQrData;
+        if (/^data:image\//i.test(contenido)) {
+            setUrlQr(contenido);
+            return undefined;
         }
 
-        temporizador = setTimeout(revisarPago, 4000);
-        return function () {
-            activo = false;
-            clearTimeout(temporizador);
-        };
-    }, [codigo, venta?.estado, cargarComprobante, limpiarUltimoComprobante]);
+        QRCode.toDataURL(contenido, {
+            width: 192,
+            margin: 2,
+            errorCorrectionLevel: "H"
+        }).then(function (dataUrl) {
+            if (activo) setUrlQr(dataUrl);
+        }).catch(function () {
+            if (activo) setUrlQr("");
+        });
 
-    async function manejarPagar() {
-        if (!venta) return;
-
-        try {
-            // MOCK de pago: en realidad aca iria el redirect a MercadoPago.
-            // Cuando MP notifica al webhook del back, el back llama a cobrarVenta.
-            // Por ahora simulamos que el pago se concreto y cobramos directo.
-            await ejecutarPago(venta.id);
-            // Recargamos el comprobante para mostrar el estado actualizado.
-            await cargarComprobante(codigo);
-            limpiarUltimoComprobante();
-        } catch {
-            // El hook mantiene el mensaje visible para la persona usuaria.
-        }
-    }
+        return function () { activo = false; };
+    }, [venta?.pagoQrData]);
 
     async function manejarCancelar() {
         if (!venta) return;
@@ -154,6 +160,17 @@ function ReimprimirComprobante() {
                     >
                         Ir al catalogo
                     </Link>
+                </main>
+            </div>
+        );
+    }
+
+    if (!venta) {
+        return (
+            <div className="min-h-screen bg-paper">
+                <EncabezadoCliente />
+                <main className="max-w-2xl mx-auto px-6 py-20 text-center">
+                    <MensajeCarga texto="Cargando comprobante..." />
                 </main>
             </div>
         );
@@ -237,6 +254,28 @@ function ReimprimirComprobante() {
 
                     {errorPagoVisible && <MensajeError texto={errorPagoVisible} className="mt-4 text-center" />}
 
+                    {venta.pagoQrData && (
+                        <div className="mt-6 bg-white border border-line p-4 text-center">
+                            <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50 mb-3">
+                                Escanea para pagar
+                            </p>
+                            {urlQr ? (
+                                <img
+                                    src={urlQr}
+                                    alt="Código QR para pagar la compra"
+                                    className="mx-auto w-48 h-48 object-contain"
+                                />
+                            ) : (
+                                <p className="font-mono-ticket text-xs text-ink/60">
+                                    Generando código QR...
+                                </p>
+                            )}
+                            <p className="font-mono-ticket text-xs text-ink/60 mt-3">
+                                La orden expires en 15 minutos.
+                            </p>
+                        </div>
+                    )}
+
                     {venta.estado === "COBRADA" && (
                         <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
                             Pago realizado con éxito. Tu comprobante está disponible en esta pantalla.
@@ -245,13 +284,6 @@ function ReimprimirComprobante() {
 
                     {venta.estado === "PENDIENTE" && (
                         <div className="mt-6 flex flex-col gap-3">
-                            <button
-                                onClick={manejarPagar}
-                                disabled={procesando}
-                                className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 transition-colors"
-                            >
-                                {procesando ? "Procesando pago..." : "Pagar con billetera virtual"}
-                            </button>
                             <button
                                 onClick={manejarCancelar}
                                 disabled={procesando}

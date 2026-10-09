@@ -4,11 +4,14 @@ import { cancelarVenta, cobrarVenta, obtenerVenta } from "../api/ventas";
 import { Alerta, Carga } from "./AdminProductos";
 import { Estado } from "./AdminVentas";
 import { usePeticion } from "../hooks/usePeticion";
+import { convertirACentavos, formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
 function AdminVentaDetalle() {
     const { id } = useParams();
     const { data: venta, isLoading: cargando, error, execute: cargar } = usePeticion(obtenerVenta);
     const [accion, setAccion] = useState(false);
+    const [efectivoRecibido, setEfectivoRecibido] = useState("");
+    const [errorAccion, setErrorAccion] = useState(null);
 
     useEffect(function () {
         cargar(id).catch(function () {
@@ -16,17 +19,38 @@ function AdminVentaDetalle() {
         });
     }, [id, cargar]);
 
-    async function ejecutarAccion(fn) {
+    async function ejecutarAccion(fn, datos) {
         setAccion(true);
+        setErrorAccion(null);
         try {
-            await fn(id);
+            await fn(id, datos);
             await cargar(id);
-        } catch {
-            // Error handled by useApi
+            if (fn === cobrarVenta) setEfectivoRecibido("");
+        } catch (errorPeticion) {
+            setErrorAccion(errorPeticion.response?.data?.mensaje || "No se pudo procesar la operación. Verificá los datos e intentá nuevamente.");
         } finally {
             setAccion(false);
         }
     }
+
+    function cobrarPendiente() {
+        const efectivoCentavos = parsearMontoACentavos(efectivoRecibido);
+        const totalCentavos = convertirACentavos(venta.total);
+        if (efectivoCentavos === null || efectivoCentavos <= 0 || totalCentavos === null || efectivoCentavos < totalCentavos) return;
+
+        ejecutarAccion(cobrarVenta, {
+            metodoPago: "Efectivo",
+            efectivoRecibido: efectivoCentavos / 100
+        });
+    }
+
+    const efectivoCentavos = parsearMontoACentavos(efectivoRecibido);
+    const totalCentavos = venta ? convertirACentavos(venta.total) : null;
+    const efectivoInvalido = efectivoRecibido.trim() !== "" && efectivoCentavos === null;
+    const efectivoInsuficiente = efectivoCentavos !== null && totalCentavos !== null && efectivoCentavos < totalCentavos;
+    const cambioCentavos = efectivoCentavos !== null && totalCentavos !== null && efectivoCentavos >= totalCentavos
+        ? efectivoCentavos - totalCentavos
+        : null;
 
     if (cargando) return <Carga />;
     if (error && !venta) return <Alerta texto={error} />;
@@ -38,6 +62,7 @@ function AdminVentaDetalle() {
             </Link>
 
             {error && <Alerta texto={error} />}
+            {errorAccion && <Alerta texto={errorAccion} />}
 
             {venta && (
                 <>
@@ -88,12 +113,50 @@ function AdminVentaDetalle() {
 
                             {venta.estado === "PENDIENTE" && (
                                 <div className="mt-6 grid gap-2">
+                                    <div className="mb-2 border-t border-line pt-4">
+                                        <p className="flex justify-between font-mono-ticket text-sm">
+                                            <span>Total</span>
+                                            <strong>{formatoMonedaARS.format(Number(venta.total))}</strong>
+                                        </p>
+                                        <label htmlFor="efectivo-recibido" className="mt-4 block font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                            Efectivo recibido
+                                        </label>
+                                        <input
+                                            id="efectivo-recibido"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={efectivoRecibido}
+                                            onChange={function (event) { setEfectivoRecibido(event.target.value); }}
+                                            placeholder="0,00"
+                                            disabled={accion}
+                                            className="mt-1 w-full border border-line bg-paper p-2.5 font-mono-ticket text-sm outline-none focus:border-forest disabled:opacity-60"
+                                        />
+                                        {efectivoInvalido && (
+                                            <p role="alert" className="mt-2 font-mono-ticket text-xs text-red-600">
+                                                Ingresá un importe válido.
+                                            </p>
+                                        )}
+                                        <p className="mt-3 flex justify-between font-mono-ticket text-sm">
+                                            <span>Cambio</span>
+                                            <strong>{formatoMonedaARS.format((cambioCentavos || 0) / 100)}</strong>
+                                        </p>
+                                        {efectivoInsuficiente && (
+                                            <p role="alert" className="mt-2 font-mono-ticket text-xs text-red-600">
+                                                El efectivo recibido es insuficiente.
+                                            </p>
+                                        )}
+                                        {cambioCentavos > 0 && (
+                                            <p role="status" className="mt-2 font-mono-ticket text-xs text-forest">
+                                                Vuelto: {formatoMonedaARS.format(cambioCentavos / 100)}
+                                            </p>
+                                        )}
+                                    </div>
                                     <button
-                                        disabled={accion}
-                                        onClick={function () { ejecutarAccion(cobrarVenta); }}
+                                        disabled={accion || efectivoCentavos === null || efectivoCentavos <= 0 || totalCentavos === null || efectivoCentavos < totalCentavos}
+                                        onClick={cobrarPendiente}
                                         className="cursor-pointer bg-forest p-2 font-mono-ticket text-sm text-paper disabled:opacity-60 hover:bg-forest-dark transition-colors"
                                     >
-                                        Pagar
+                                        {accion ? "Cobrando..." : "Cobrar"}
                                     </button>
                                     <button
                                         disabled={accion}

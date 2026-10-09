@@ -61,7 +61,8 @@ function Carrito() {
                 dni: datosFactura.dni.trim(),
                 email: datosFactura.email.trim(),
                 confirmarEmail: datosFactura.confirmarEmail.trim()
-            }
+            },
+            metodoPago: "MercadoPago"
         };
 
         try {
