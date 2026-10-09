@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { useEffect } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { checkoutSchema } from "../validations/checkoutSchema";
 import { crearVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
+import { useAuthStore } from "../store/authStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import MensajeError from "../components/MensajeError";
 import { usePeticion } from "../hooks/usePeticion";
@@ -28,6 +30,9 @@ function Carrito() {
     const vaciarCarrito = useCarritoStore(function (estado) { return estado.vaciarCarrito; });
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
+    const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const actualizarPerfilCliente = useAuthStore(function (estado) { return estado.actualizarPerfilCliente; });
+    const dniCliente = usuario?.dni ?? usuario?.documento ?? usuario?.DNI ?? usuario?.clienteDni ?? "";
 
     const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
@@ -36,17 +41,28 @@ function Carrito() {
     const {
         register,
         handleSubmit,
+        reset,
         formState: { errors },
     } = useForm({
         resolver: yupResolver(checkoutSchema),
         defaultValues: {
-            nombre: "",
-            apellido: "",
-            dni: "",
-            email: "",
-            confirmarEmail: ""
+            nombre: usuario?.nombre || "",
+            apellido: usuario?.apellido || "",
+            dni: dniCliente,
+            email: usuario?.email || "",
+            confirmarEmail: usuario?.email || ""
         }
     });
+
+    useEffect(function () {
+        reset({
+            nombre: usuario?.nombre || "",
+            apellido: usuario?.apellido || "",
+            dni: dniCliente,
+            email: usuario?.email || "",
+            confirmarEmail: usuario?.email || ""
+        });
+    }, [usuario, dniCliente, reset]);
 
     async function manejarConfirmarCompra(datosFactura) {
         const itemsParaEnviar = items.map(function (item) {
@@ -66,6 +82,15 @@ function Carrito() {
         };
 
         try {
+            if (usuario && usuario.rol === "Cliente") {
+                actualizarPerfilCliente({
+                    nombre: datosFactura.nombre.trim(),
+                    apellido: datosFactura.apellido.trim(),
+                    dni: datosFactura.dni.trim(),
+                    email: datosFactura.email.trim()
+                });
+            }
+
             const venta = await confirmarCompra(payload);
             setUltimoComprobante({
                 codigo: venta.codigoComprobante,
@@ -107,38 +132,38 @@ function Carrito() {
                         <div className="bg-ticket border border-line divide-y divide-line">
                             {items.map(function (item) {
                                 return (
-                                    <div key={item.productoId} className="flex items-center justify-between p-5">
-                                        <div>
-                                            <p className="font-display text-lg text-ink">{item.nombre}</p>
-                                            <p className="font-mono-ticket text-xs text-ink/50">
-                                                ${item.precio.toFixed(2)} c/u
+                                    <div key={item.productoId} className="flex items-center justify-between gap-4 p-5">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-display text-2xl leading-tight text-ink">{item.nombre}</p>
+                                            <p className="font-mono-ticket text-sm text-ink/60 mt-1">
+                                                ${item.precio.toFixed(2)} x {item.cantidad}  
                                             </p>
                                         </div>
 
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-4 ml-auto">
+                                            <div className="flex items-center gap-3 border border-line bg-paper px-2 py-1">
                                                 <button
                                                     onClick={function () { cambiarCantidad(item.productoId, item.cantidad - 1); }}
-                                                    className="w-7 h-7 border border-line text-ink flex items-center justify-center"
+                                                    className="w-8 h-8 border border-line text-ink flex items-center justify-center transition-colors hover:bg-forest/5"
                                                 >
                                                     <Minus size={14} />
                                                 </button>
-                                                <span className="font-mono-ticket text-sm w-6 text-center">
+                                                <span className="font-mono-ticket text-xl w-7 text-center text-ink leading-none">
                                                     {item.cantidad}
                                                 </span>
                                                 <button
                                                     onClick={function () { cambiarCantidad(item.productoId, item.cantidad + 1); }}
-                                                    className="w-7 h-7 border border-line text-ink flex items-center justify-center"
+                                                    className="w-8 h-8 border border-line text-ink flex items-center justify-center transition-colors hover:bg-forest/5"
                                                 >
                                                     <Plus size={14} />
                                                 </button>
                                             </div>
-                                            <span className="font-mono-ticket text-sm text-ink w-20 text-right">
+                                            <span className="font-mono-ticket text-2xl text-ink min-w-[110px] text-right">
                                                 ${(item.precio * item.cantidad).toFixed(2)}
                                             </span>
                                             <button
                                                 onClick={function () { quitarProducto(item.productoId); }}
-                                                className="text-red-600 hover:text-red-700"
+                                                className="text-red-600 hover:text-red-700 transition-colors"
                                                 title="Quitar del carrito"
                                             >
                                                 <Trash2 size={18} />
@@ -149,11 +174,11 @@ function Carrito() {
                             })}
                         </div>
 
-                        <div className="flex items-center justify-between mt-6">
+                        <div className="flex items-center justify-between mt-8 border-t border-line pt-5">
                             <span className="font-mono-ticket text-sm uppercase tracking-wide text-ink/60">
                                 Total
                             </span>
-                            <span className="font-mono-ticket text-2xl text-forest">
+                            <span className="font-mono-ticket text-4xl text-forest">
                                 ${obtenerTotal().toFixed(2)}
                             </span>
                         </div>
@@ -166,7 +191,9 @@ function Carrito() {
                                 Datos para la factura
                             </h2>
                             <p className="font-mono-ticket text-xs text-ink/60 mb-5">
-                                No necesitas crear cuenta. Solo completa estos datos para emitir el comprobante.
+                                {usuario && usuario.rol === "Cliente"
+                                    ? "Podés editar tus datos para esta compra y quedarán guardados en tu perfil."
+                                    : "No necesitas crear cuenta. Solo completa estos datos para emitir el comprobante."}
                             </p>
 
                             <form onSubmit={handleSubmit(manejarConfirmarCompra)}>
