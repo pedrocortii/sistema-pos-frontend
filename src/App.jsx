@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
+import LoginCliente from "./pages/LoginCliente";
 import Registro from "./pages/Registro";
 import Dashboard from "./pages/Dashboard";
 import Catalogo from "./pages/Catalogo";
 import ProductoDetalle from "./pages/ProductoDetalle";
 import Carrito from "./pages/Carrito";
 import ReimprimirComprobante from "./pages/ReimprimirComprobante";
+import MiPerfil from "./pages/MiPerfil";
 import RutaProtegida from "./components/RutaProtegida";
 import AdminLayout from "./components/AdminLayout";
 import AdminProductos from "./pages/AdminProductos";
@@ -27,12 +29,14 @@ function App() {
             <Routes>
                 <Route path="/" element={<RedireccionRaiz />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/login-cliente" element={<LoginCliente />} />
                 <Route path="/registro" element={<Registro />} />
 
                 {/* Rutas publicas: el cliente no necesita login. */}
                 <Route path="/catalogo" element={<Catalogo />} />
                 <Route path="/catalogo/:id" element={<ProductoDetalle />} />
                 <Route path="/carrito" element={<Carrito />} />
+                <Route path="/mi-perfil" element={<MiPerfil />} />
                 <Route path="/comprobante/:codigo" element={<ReimprimirComprobante />} />
 
                 {/* Rutas protegidas: cualquier usuario autenticado. */}

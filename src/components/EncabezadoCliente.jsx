@@ -7,6 +7,7 @@ function EncabezadoCliente() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const cerrarSesion = useAuthStore(function (estado) { return estado.cerrarSesion; });
     const items = useCarritoStore(function (estado) { return estado.items; });
+    const esClienteRegistrado = usuario && usuario.rol === "Cliente";
     const ultimoComprobante = useCarritoStore(function (estado) { return estado.ultimoComprobante; });
     const cantidadCarrito = items.reduce(function (total, item) { return total + item.cantidad; }, 0);
     const navegar = useNavigate();
@@ -66,6 +67,12 @@ function EncabezadoCliente() {
                         </Link>
                     )}
 
+                    {esClienteRegistrado && (
+                        <Link to="/mi-perfil" className="uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                            Mi perfil
+                        </Link>
+                    )}
+
                     <Link
                         to="/carrito"
                         aria-label={`Carrito de compras, ${cantidadCarrito} ${cantidadCarrito === 1 ? "producto" : "productos"}`}
@@ -90,10 +97,16 @@ function EncabezadoCliente() {
                             Salir
                         </button>
                     ) : (
-                        <Link to="/" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
-                            <LogIn size={18} aria-hidden="true" />
-                            Iniciar sesión
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <Link to="/login-cliente" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                                <LogIn size={18} aria-hidden="true" />
+                                Ingresar
+                            </Link>
+                            <Link to="/registro" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                                <LogIn size={18} aria-hidden="true" />
+                                Crear cuenta
+                            </Link>
+                        </div>
                     )}
                 </nav>
             </div>
