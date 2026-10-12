@@ -10,6 +10,7 @@ import { useAuthStore } from "../store/authStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import MensajeError from "../components/MensajeError";
 import { usePeticion } from "../hooks/usePeticion";
+import ImagenProducto from "../components/ImagenProducto";
 
 function obtenerErrorCheckout(error) {
     const datos = error.response?.data;
@@ -133,6 +134,11 @@ function Carrito() {
                             {items.map(function (item) {
                                 return (
                                     <div key={item.productoId} className="flex items-center justify-between gap-4 p-5">
+                                        <ImagenProducto
+                                            imagen={item.imagen}
+                                            alt={"Imagen de " + item.nombre}
+                                            className="h-14 w-14 shrink-0 rounded border border-line object-cover"
+                                        />
                                         <div className="min-w-0 flex-1">
                                             <p className="font-display text-2xl leading-tight text-ink">{item.nombre}</p>
                                             <p className="font-mono-ticket text-sm text-ink/60 mt-1">

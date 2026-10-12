@@ -38,6 +38,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                         if (item.productoId === producto.id) {
                             return {
                                 ...item,
+                                imagen: producto.imagen || item.imagen,
                                 stockDisponible: stockDisponible,
                                 cantidad: cantidadSolicitada
                             };
@@ -52,6 +53,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                         {
                             productoId: producto.id,
                             nombre: producto.nombre,
+                            imagen: producto.imagen || null,
                             precio: Number(producto.precio),
                             stockDisponible: stockDisponible,
                             cantidad: cantidadAAgregar

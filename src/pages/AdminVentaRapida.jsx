@@ -5,7 +5,7 @@ import { listarProductos } from "../api/productos";
 import { cobrarVenta, consultarEstadoQr, crearVentaDirecta } from "../api/ventas";
 import { usePeticion } from "../hooks/usePeticion";
 import { useAuthStore } from "../store/authStore";
-import { Alerta, Cabecera, Carga } from "./AdminProductos";
+import { AlertaAdmin, CabeceraAdmin, CargaAdmin } from "../components/AdminUI";
 import { formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
 function obtenerErrorVenta(error) {
@@ -282,7 +282,7 @@ function AdminVentaRapida() {
 
     return (
         <section>
-            <Cabecera etiqueta="Caja" titulo="Venta rápida" />
+            <CabeceraAdmin etiqueta="Caja" titulo="Venta rápida" />
             <p className="mt-2 font-mono-ticket text-sm text-ink/60">Selecciona productos y registra la venta en un solo paso.</p>
 
             {ultimaVenta && (
@@ -297,7 +297,7 @@ function AdminVentaRapida() {
                 </div>
             )}
 
-            {(errorProductos || errorVenta || errorCobro) && <Alerta texto={errorProductos || errorVenta || errorCobro} />}
+            {(errorProductos || errorVenta || errorCobro) && <AlertaAdmin texto={errorProductos || errorVenta || errorCobro} />}
 
             <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
                 <div className="border border-line bg-ticket">
@@ -308,7 +308,7 @@ function AdminVentaRapida() {
                             <input id="buscar-producto" value={busqueda} onChange={function (event) { setBusqueda(event.target.value); }} placeholder="Buscar por nombre o categoría" className="w-full bg-transparent py-3 font-mono-ticket text-sm outline-none" />
                         </div>
                     </div>
-                    {cargandoProductos ? <Carga /> : (
+                    {cargandoProductos ? <CargaAdmin /> : (
                         <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
                             {productosVisibles.map(function (producto) {
                                 const stock = disponible(producto);
