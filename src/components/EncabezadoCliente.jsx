@@ -100,7 +100,7 @@ function EncabezadoCliente() {
                         <div className="flex items-center gap-4">
                             <Link to="/login-cliente" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                                 <LogIn size={18} aria-hidden="true" />
-                                Ingresar
+                                Iniciar sesión
                             </Link>
                             <Link to="/registro" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                                 <LogIn size={18} aria-hidden="true" />

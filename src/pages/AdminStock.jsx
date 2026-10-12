@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { ajustarStock, listarStock } from "../api/stock";
 import AjustarStockModal from "../components/AjustarStockModal";
-import { Alerta, Cabecera, Carga, Paginacion } from "./AdminProductos";
+import { AlertaAdmin, CabeceraAdmin, CargaAdmin, PaginacionAdmin } from "../components/AdminUI";
 import { usePeticion } from "../hooks/usePeticion";
 import { useModal } from "../hooks/useModal";
 import { useAuthStore } from "../store/authStore";
+import ImagenProducto from "../components/ImagenProducto";
 
 function AdminStock() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
@@ -49,7 +50,7 @@ function AdminStock() {
 
     return (
         <section>
-            <Cabecera etiqueta="Stock" titulo="Inventario" />
+            <CabeceraAdmin etiqueta="Stock" titulo="Inventario" />
             <label className="mt-6 flex w-fit items-center gap-2 font-mono-ticket text-sm">
                 <input
                     type="checkbox"
@@ -61,14 +62,15 @@ function AdminStock() {
                 />
                 Mostrar solo stock bajo
             </label>
-            {error && <Alerta texto={error} />}
+            {error && <AlertaAdmin texto={error} />}
             {cargando ? (
-                <Carga />
+                <CargaAdmin />
             ) : (
                 <div className="mt-5 overflow-x-auto border border-line bg-ticket">
                     <table className="w-full min-w-175 text-left">
                         <thead className="border-b border-line bg-paper font-mono-ticket text-xs uppercase text-ink/60">
                             <tr>
+                                <th className="p-3">Imagen</th>
                                 <th className="p-3">Producto</th>
                                 <th>Actual</th>
                                 <th>Reservado</th>
@@ -81,7 +83,14 @@ function AdminStock() {
                                 const esBajo = p.stockDisponible <= 5;
                                 return (
                                     <tr key={p.id} className="border-b border-line">
-                                        <td className="p-3">{p.nombre}</td>
+                                        <td className="p-3">
+                                            <ImagenProducto
+                                                imagen={p.imagen}
+                                                alt={"Imagen de " + p.nombre}
+                                                className="h-10 w-10 rounded object-cover"
+                                            />
+                                        </td>
+                                        <td>{p.nombre}</td>
                                         <td>{p.stock}</td>
                                         <td>{p.stockReservado}</td>
                                         <td>
@@ -109,7 +118,7 @@ function AdminStock() {
                     </table>
                 </div>
             )}
-            <Paginacion pagina={pagina} total={total} cambiar={setPagina} />
+            <PaginacionAdmin pagina={pagina} total={total} cambiar={setPagina} />
             {esAdministrador && modal && (
                 <AjustarStockModal
                     producto={modal}

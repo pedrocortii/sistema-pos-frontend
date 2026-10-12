@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listarVentas } from "../api/ventas";
-import { Alerta, Cabecera, Carga, Paginacion } from "./AdminProductos";
+import { AlertaAdmin, CabeceraAdmin, CargaAdmin, EstadoVenta, PaginacionAdmin } from "../components/AdminUI";
 import { usePeticion } from "../hooks/usePeticion";
 
 function AdminVentas() {
@@ -50,7 +50,7 @@ function AdminVentas() {
 
     return (
         <section>
-            <Cabecera etiqueta="Ventas" titulo="Ventas registradas" />
+            <CabeceraAdmin etiqueta="Ventas" titulo="Ventas registradas" />
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <input
                     value={buscar}
@@ -82,9 +82,9 @@ function AdminVentas() {
                 />
             </div>
 
-            {error && <Alerta texto={error} />}
+            {error && <AlertaAdmin texto={error} />}
             {cargando ? (
-                <Carga />
+                <CargaAdmin />
             ) : (
                 <div className="mt-5 overflow-x-auto border border-line bg-ticket">
                     <table className="w-full min-w-200 text-left">
@@ -115,7 +115,7 @@ function AdminVentas() {
                                         </td>
                                         <td>${Number(v.total).toFixed(2)}</td>
                                         <td>
-                                            <Estado estado={v.estado} />
+                                            <EstadoVenta estado={v.estado} />
                                         </td>
                                         <td className="p-3 text-forest">Ver detalle</td>
                                     </tr>
@@ -125,23 +125,13 @@ function AdminVentas() {
                     </table>
                 </div>
             )}
-            <Paginacion
+            <PaginacionAdmin
                 pagina={pagina}
                 total={totalPaginas}
                 cambiar={function (p) { cambiar("pagina", String(p)); }}
             />
         </section>
     );
-}
-
-export function Estado({ estado }) {
-    const color =
-        estado === "COBRADA"
-            ? "bg-green-100 text-green-700"
-            : estado === "CANCELADA"
-            ? "bg-red-100 text-red-700"
-            : "bg-amber/30 text-ink";
-    return <span className={"rounded px-2 py-1 font-mono-ticket text-xs " + color}>{estado}</span>;
 }
 
 export default AdminVentas;

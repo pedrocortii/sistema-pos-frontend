@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { actualizarProducto, crearProducto, eliminarProducto, listarProductos } from "../api/productos";
 import ProductoForm from "../components/ProductoForm";
+import { AlertaAdmin, CabeceraAdmin, CargaAdmin, PaginacionAdmin } from "../components/AdminUI";
 import { useModal } from "../hooks/useModal";
 import { useFilter } from "../hooks/useFilter";
 import { usePagination } from "../hooks/usePagination";
-import MensajeCarga from "../components/MensajeCarga";
-import MensajeError from "../components/MensajeError";
 import { useAuthStore } from "../store/authStore";
+import ImagenProducto from "../components/ImagenProducto";
 
 const porPagina = 10;
 
@@ -27,11 +27,11 @@ function AdminProductos() {
     const visibles = filtrados;
     const totalPaginas = Math.ceil((productosResponse?.total || 0) / porPagina);
 
-    async function guardar(datos) {
+    async function guardar(datos, archivoImagen) {
         setGuardando(true);
         try {
-            if (modal) await actualizarProducto(modal.id, datos);
-            else await crearProducto(datos);
+            if (modal) await actualizarProducto(modal.id, datos, archivoImagen);
+            else await crearProducto(datos, archivoImagen);
             close();
             await cargar();
         } catch {
@@ -53,7 +53,7 @@ function AdminProductos() {
 
     return (
         <section>
-            <Cabecera etiqueta="Productos" titulo="Catálogo de productos" />
+            <CabeceraAdmin etiqueta="Productos" titulo="Catálogo de productos" />
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
                 <input
                     value={busqueda}
@@ -74,14 +74,15 @@ function AdminProductos() {
                 )}
             </div>
 
-            {error && <Alerta texto={error} />}
+            {error && <AlertaAdmin texto={error} />}
             {cargando ? (
-                <Carga />
+                <CargaAdmin />
             ) : (
                 <div className="mt-5 overflow-x-auto border border-line bg-ticket">
                     <table className="w-full min-w-175 text-left">
                         <thead className="border-b border-line bg-paper font-mono-ticket text-xs uppercase text-ink/60">
                             <tr>
+                                <th className="p-3">Imagen</th>
                                 <th className="p-3">Nombre</th>
                                 <th>Precio</th>
                                 <th>Disponible</th>
@@ -93,6 +94,13 @@ function AdminProductos() {
                             {visibles.map(function (p) {
                                 return (
                                     <tr key={p.id} className="border-b border-line last:border-0">
+                                        <td className="p-3">
+                                            <ImagenProducto
+                                                imagen={p.imagen}
+                                                alt={"Imagen de " + p.nombre}
+                                                className="h-10 w-10 rounded object-cover"
+                                            />
+                                        </td>
                                         <td className="p-3 font-medium">{p.nombre}</td>
                                         <td>${Number(p.precio).toFixed(2)}</td>
                                         <td>{p.stock - (p.stockReservado || 0)}</td>
@@ -118,7 +126,7 @@ function AdminProductos() {
                 </div>
             )}
 
-            <Paginacion pagina={pagina} total={totalPaginas} cambiar={setPagina} />
+            <PaginacionAdmin pagina={pagina} total={totalPaginas} cambiar={setPagina} />
             {esAdministrador && modal !== null && (
                 <ProductoForm
                     producto={modal.id ? modal : null}
@@ -128,39 +136,6 @@ function AdminProductos() {
                 />
             )}
         </section>
-    );
-}
-
-export function Cabecera({ etiqueta, titulo }) {
-    return (
-        <>
-            <p className="font-mono-ticket text-xs uppercase tracking-[.25em] text-forest">{etiqueta}</p>
-            <h1 className="mt-2 font-display text-3xl sm:text-4xl">{titulo}</h1>
-        </>
-    );
-}
-
-export function Carga() {
-    return <MensajeCarga className="mt-8" />;
-}
-
-export function Alerta({ texto }) {
-    return <MensajeError texto={texto} className="mt-4" />;
-}
-
-export function Paginacion({ pagina, total, cambiar }) {
-    return (
-        total > 1 && (
-            <div className="mt-6 flex justify-center gap-4 font-mono-ticket text-sm">
-                <button disabled={pagina === 1} onClick={function () { cambiar(pagina - 1); }} className="cursor-pointer text-forest disabled:opacity-30">
-                    Anterior
-                </button>
-                <span>{pagina} / {total}</span>
-                <button disabled={pagina === total} onClick={function () { cambiar(pagina + 1); }} className="cursor-pointer text-forest disabled:opacity-30">
-                    Siguiente
-                </button>
-            </div>
-        )
     );
 }
 

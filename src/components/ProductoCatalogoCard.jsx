@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, ShoppingCart } from "lucide-react";
 import { useCarritoStore } from "../store/carritoStore";
 import SelectorCantidad from "./SelectorCantidad";
+import ImagenProducto from "./ImagenProducto";
 
 function ProductoCatalogoCard({ producto }) {
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
@@ -33,6 +34,11 @@ function ProductoCatalogoCard({ producto }) {
 
     return (
         <article className="bg-ticket border border-line p-6 flex flex-col hover:border-forest transition-colors">
+            <ImagenProducto
+                imagen={producto.imagen}
+                alt={"Imagen de " + producto.nombre}
+                className="-mx-6 -mt-6 mb-4 aspect-[4/3] w-[calc(100%+3rem)] rounded-t object-cover"
+            />
             <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">
                 {producto.categoria}
             </p>

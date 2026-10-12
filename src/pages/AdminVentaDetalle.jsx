@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { cancelarVenta, cobrarVenta, obtenerVenta } from "../api/ventas";
-import { Alerta, Carga } from "./AdminProductos";
-import { Estado } from "./AdminVentas";
+import { AlertaAdmin, CargaAdmin, EstadoVenta } from "../components/AdminUI";
 import { usePeticion } from "../hooks/usePeticion";
 import { convertirACentavos, formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
@@ -52,8 +51,8 @@ function AdminVentaDetalle() {
         ? efectivoCentavos - totalCentavos
         : null;
 
-    if (cargando) return <Carga />;
-    if (error && !venta) return <Alerta texto={error} />;
+    if (cargando) return <CargaAdmin />;
+    if (error && !venta) return <AlertaAdmin texto={error} />;
 
     return (
         <section>
@@ -61,8 +60,8 @@ function AdminVentaDetalle() {
                 ← Volver a ventas
             </Link>
 
-            {error && <Alerta texto={error} />}
-            {errorAccion && <Alerta texto={errorAccion} />}
+            {error && <AlertaAdmin texto={error} />}
+            {errorAccion && <AlertaAdmin texto={errorAccion} />}
 
             {venta && (
                 <>
@@ -74,7 +73,7 @@ function AdminVentaDetalle() {
                                 {new Date(venta.fecha).toLocaleString("es-AR")}
                             </p>
                         </div>
-                        <Estado estado={venta.estado} />
+                        <EstadoVenta estado={venta.estado} />
                     </div>
 
                     <div className="mt-6 grid gap-5 lg:grid-cols-3">
