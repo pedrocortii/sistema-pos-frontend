@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ShoppingCart } from "lucide-react";
 import { obtenerProducto } from "../api/productos";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import SelectorCantidad from "../components/SelectorCantidad";
 import MensajeCarga from "../components/MensajeCarga";
-import MensajeError from "../components/MensajeError";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
+import { Alert } from "../components/ui/Alert";
 import { usePeticion } from "../hooks/usePeticion";
 
 function obtenerErrorProducto() {
@@ -46,8 +50,6 @@ function ProductoDetalle() {
         }
     }
 
-    // El cliente ve el stock disponible = stock fisico - stock reservado
-    // por ventas PENDIENTES. El back ya devuelve ambos campos.
     const stock = producto ? Number(producto.stock) : 0;
     const stockReservado = producto ? Number(producto.stockReservado || 0) : 0;
     const stockDisponible = Number.isFinite(stock)
@@ -59,76 +61,98 @@ function ProductoDetalle() {
             <EncabezadoCliente />
 
             <main className="max-w-2xl mx-auto px-6 py-10">
-                <Link to="/catalogo" className="font-mono-ticket text-sm text-forest underline flex items-center gap-1 w-fit">
-                    <ArrowLeft size={16} />
-                    Volver al catalogo
-                </Link>
+                <PageHeader
+                    volverA="/catalogo"
+                    textoVolver="Volver al catálogo"
+                    className="mb-4"
+                />
 
                 {cargando && <MensajeCarga className="mt-8" />}
 
-                {error && <MensajeError texto={error} className="mt-8" />}
+                {error && <Alert tipo="error" texto={error} className="mt-8" />}
 
                 {producto && (
-                    <div className="bg-ticket border border-line p-8 mt-6">
-                        <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">
-                            {producto.categoria}
-                        </p>
-                        <h1 className="font-display text-3xl text-ink mt-1">
+                    <Card className="p-8 mt-6">
+                        <div className="flex items-center justify-between gap-4">
+                            <p className="font-mono-ticket text-xs text-forest">
+                                {producto.categoria}
+                            </p>
+                            {stockDisponible === 0 && (
+                                <Badge variant="danger">Sin stock</Badge>
+                            )}
+                        </div>
+
+                        <h1 className="font-display text-3xl text-ink mt-2">
                             {producto.nombre}
                         </h1>
+
                         {producto.descripcion && (
-                            <p className="text-ink/70 mt-3">
+                            <p className="text-ink/70 mt-3 font-sans">
                                 {producto.descripcion}
                             </p>
                         )}
 
-                        <p className="font-mono-ticket text-2xl text-forest mt-6">
+                        <p className="font-mono-ticket text-3xl text-forest font-bold mt-6">
                             ${Number(producto.precio).toFixed(2)}
                         </p>
 
                         {stockDisponible === 0 ? (
-                            <p className="font-mono-ticket text-sm text-red-600 mt-6">
-                                Producto sin stock disponible
-                            </p>
+                            <Alert
+                                variant="warning"
+                                texto="Este producto se encuentra temporalmente sin stock disponible."
+                                className="mt-6"
+                            />
                         ) : (
                             <>
                                 <p className="font-mono-ticket text-xs text-ink/60 mt-6">
                                     Stock disponible: {stockDisponible} unidades
                                 </p>
                                 <div className="flex items-center gap-4 mt-3">
-                                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                                    <label className="font-mono-ticket text-xs text-ink/60">
                                         Cantidad
                                     </label>
-                                    <SelectorCantidad cantidad={cantidad} onCambiar={function (valor) { setAvisoStock(""); setCantidad(valor); }} maximo={stockDisponible} />
+                                    <SelectorCantidad
+                                        cantidad={cantidad}
+                                        onCambiar={function (valor) {
+                                            setAvisoStock("");
+                                            setCantidad(valor);
+                                        }}
+                                        maximo={stockDisponible}
+                                    />
                                 </div>
 
-                                <button
+                                <Button
                                     onClick={manejarAgregar}
                                     disabled={cantidad > stockDisponible}
-                                    className="w-full mt-6 bg-forest hover:bg-forest-dark disabled:opacity-60 disabled:cursor-not-allowed text-paper font-mono-ticket text-sm uppercase tracking-wide py-3.5 transition-colors flex items-center justify-center gap-2"
+                                    icon={ShoppingCart}
+                                    size="lg"
+                                    className="w-full mt-6"
                                 >
-                                    <ShoppingCart size={18} />
                                     Agregar al carrito
-                                </button>
+                                </Button>
 
-                                {avisoStock && <p className="mt-3 text-center font-mono-ticket text-sm text-red-600" role="alert">{avisoStock}</p>}
+                                {avisoStock && (
+                                    <Alert tipo="error" texto={avisoStock} className="mt-4" />
+                                )}
 
                                 {agregado && (
-                                    <div className="mt-4 text-center">
-                                        <p className="font-mono-ticket text-sm text-forest">
-                                            Producto agregado al carrito.
-                                        </p>
+                                    <Alert
+                                        variant="success"
+                                        titulo="¡Producto agregado al carrito!"
+                                        className="mt-4 text-center"
+                                    >
                                         <button
+                                            type="button"
                                             onClick={function () { navegar("/carrito"); }}
-                                            className="font-mono-ticket text-sm text-forest underline mt-1"
+                                            className="font-mono-ticket text-sm text-forest font-bold underline mt-1 cursor-pointer"
                                         >
-                                            Ir al carrito
+                                            Ver carrito y pagar →
                                         </button>
-                                    </div>
+                                    </Alert>
                                 )}
                             </>
                         )}
-                    </div>
+                    </Card>
                 )}
             </main>
         </div>

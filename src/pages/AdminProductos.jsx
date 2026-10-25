@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { actualizarProducto, crearProducto, eliminarProducto, listarProductos } from "../api/productos";
 import ProductoForm from "../components/ProductoForm";
-import { AlertaAdmin, CabeceraAdmin, CargaAdmin, PaginacionAdmin } from "../components/AdminUI";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { TableBody, TableEmpty, TableHead, TableHeader } from "../components/ui/Table";
+import { Pagination } from "../components/ui/Pagination";
+import { DataTable } from "../components/ui/DataTable";
+import { FilterBar } from "../components/ui/FilterBar";
+import { AdminProductoRow } from "../components/AdminProductoRow";
 import { useModal } from "../hooks/useModal";
-import { useFilter } from "../hooks/useFilter";
-import { usePagination } from "../hooks/usePagination";
 import { useAuthStore } from "../store/authStore";
-import ImagenProducto from "../components/ImagenProducto";
+import { useDataTable } from "../hooks/useDataTable";
 
 const porPagina = 10;
 
@@ -15,27 +20,51 @@ function AdminProductos() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const esAdministrador = usuario?.rol === "Administrador";
     const { open, close, modalData: modal } = useModal();
-    const { data: productosResponse = {}, isLoading: cargando, error, page: pagina, setPage: setPagina, fetchPage: cargar } = usePagination(listarProductos);
 
-    // Extraemos la lista de productos del objeto de respuesta del servidor
+    const {
+        data: productosResponse,
+        isLoading: cargando,
+        error,
+        page: pagina,
+        setPage,
+        setSearch,
+        search: busqueda,
+        refresh
+    } = useDataTable(listarProductos, {
+        initialParams: { limit: porPagina }
+    });
+
     const productos = productosResponse?.data || [];
-    const { query: busqueda, setQuery: setBusqueda, filteredData: filtrados } = useFilter(productos, (p) => p.nombre);
 
     const [guardando, setGuardando] = useState(false);
+    const [errorGuardar, setErrorGuardar] = useState(null);
 
-    
-    const visibles = filtrados;
-    const totalPaginas = Math.ceil((productosResponse?.total || 0) / porPagina);
+    function abrirModal(datos = {}) {
+        setErrorGuardar(null);
+        open(datos);
+    }
+
+    function cerrarModal() {
+        setErrorGuardar(null);
+        close();
+    }
 
     async function guardar(datos, archivoImagen) {
         setGuardando(true);
+        setErrorGuardar(null);
         try {
-            if (modal) await actualizarProducto(modal.id, datos, archivoImagen);
-            else await crearProducto(datos, archivoImagen);
-            close();
-            await cargar();
-        } catch {
-            // El error queda disponible en usePeticion.
+            if (modal?.id) {
+                await actualizarProducto(modal.id, datos, archivoImagen);
+            } else {
+                await crearProducto(datos, archivoImagen);
+            }
+            cerrarModal();
+            await refresh();
+        } catch (errorPeticion) {
+            setErrorGuardar(
+                errorPeticion.response?.data?.mensaje ||
+                "No se pudo guardar el producto. Verificá los datos e intentá de nuevo."
+            );
         } finally {
             setGuardando(false);
         }
@@ -45,94 +74,87 @@ function AdminProductos() {
         if (!window.confirm(`¿Eliminar “${producto.nombre}”?`)) return;
         try {
             await eliminarProducto(producto.id);
-            await cargar();
+            await refresh();
         } catch {
-            // El error queda disponible en usePeticion.
+            // El error queda disponible en useDataTable -> usePeticion.
         }
     }
 
+    const totalPaginas = Math.ceil((productosResponse?.total || 0) / porPagina);
+
     return (
         <section>
-            <CabeceraAdmin etiqueta="Productos" titulo="Catálogo de productos" />
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
-                <input
+            <PageHeader
+                etiqueta="Productos"
+                titulo="Catálogo de productos"
+                acciones={
+                    esAdministrador && (
+                        <Button
+                            onClick={function () { abrirModal({}); }}
+                            icon={Plus}
+                        >
+                            Nuevo producto
+                        </Button>
+                    )
+                }
+            />
+
+            <FilterBar>
+                <Input
                     value={busqueda}
                     onChange={function (e) {
-                        setBusqueda(e.target.value);
-                        setPagina(1);
+                        setSearch(e.target.value);
                     }}
-                    placeholder="Buscar por nombre"
-                    className="border border-line bg-ticket px-3 py-2 font-mono-ticket text-sm outline-none focus:border-forest"
+                    placeholder="Buscar por nombre..."
+                    icon={Search}
                 />
-                {esAdministrador && (
-                    <button
-                        onClick={function () { open({}); }}
-                        className="flex cursor-pointer items-center justify-center gap-2 bg-forest px-4 py-2 font-mono-ticket text-sm text-paper"
-                    >
-                        <Plus size={17} />Nuevo producto
-                    </button>
-                )}
-            </div>
+            </FilterBar>
 
-            {error && <AlertaAdmin texto={error} />}
-            {cargando ? (
-                <CargaAdmin />
-            ) : (
-                <div className="mt-5 overflow-x-auto border border-line bg-ticket">
-                    <table className="w-full min-w-175 text-left">
-                        <thead className="border-b border-line bg-paper font-mono-ticket text-xs uppercase text-ink/60">
-                            <tr>
-                                <th className="p-3">Imagen</th>
-                                <th className="p-3">Nombre</th>
-                                <th>Precio</th>
-                                <th>Disponible</th>
-                                <th>Categoría</th>
-                                {esAdministrador && <th className="p-3">Acciones</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {visibles.map(function (p) {
-                                return (
-                                    <tr key={p.id} className="border-b border-line last:border-0">
-                                        <td className="p-3">
-                                            <ImagenProducto
-                                                imagen={p.imagen}
-                                                alt={"Imagen de " + p.nombre}
-                                                className="h-10 w-10 rounded object-cover"
-                                            />
-                                        </td>
-                                        <td className="p-3 font-medium">{p.nombre}</td>
-                                        <td>${Number(p.precio).toFixed(2)}</td>
-                                        <td>{p.stock - (p.stockReservado || 0)}</td>
-                                        <td>{p.categoria}</td>
-                                        {esAdministrador && (
-                                            <td className="p-3">
-                                                <div className="flex gap-2">
-                                                    <button onClick={function () { open(p); }} className="cursor-pointer text-forest" aria-label="Editar">
-                                                        <Pencil size={17} />
-                                                    </button>
-                                                    <button onClick={function () { borrar(p); }} className="cursor-pointer text-red-600" aria-label="Eliminar">
-                                                        <Trash2 size={17} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                    {!visibles.length && <p className="p-5 font-mono-ticket text-sm text-ink/60">No hay productos que coincidan.</p>}
-                </div>
-            )}
+            <DataTable
+                isLoading={cargando}
+                error={error}
+                data={productos}
+            >
+                <TableHeader>
+                    <tr className="border-b border-line bg-paper text-xs text-ink/60">
+                        <TableHead className="w-16">Imagen</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Precio</TableHead>
+                        <TableHead>Disponible</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        {esAdministrador && <TableHead className="text-right">Acciones</TableHead>}
+                    </tr>
+                </TableHeader>
+                <TableBody className="divide-y divide-line">
+                    {productos.map(function (p) {
+                        return (
+                            <AdminProductoRow
+                                key={p.id}
+                                producto={p}
+                                esAdministrador={esAdministrador}
+                                onEdit={abrirModal}
+                                onDelete={borrar}
+                            />
+                        );
+                    })}
+                    {!productos.length && (
+                        <TableEmpty
+                            colSpan={esAdministrador ? 6 : 5}
+                            mensaje="No hay productos que coincidan con la búsqueda."
+                        />
+                    )}
+                </TableBody>
+            </DataTable>
 
-            <PaginacionAdmin pagina={pagina} total={totalPaginas} cambiar={setPagina} />
+            <Pagination pagina={pagina} total={totalPaginas} cambiar={setPage} />
+
             {esAdministrador && modal !== null && (
                 <ProductoForm
                     producto={modal.id ? modal : null}
-                    alCerrar={close}
+                    alCerrar={cerrarModal}
                     alGuardar={guardar}
                     guardando={guardando}
+                    error={errorGuardar}
                 />
             )}
         </section>

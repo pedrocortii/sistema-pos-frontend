@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
+import { Package } from "lucide-react";
 import { listarProductos } from "../api/productos";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import ProductoCatalogoCard from "../components/ProductoCatalogoCard";
 import MensajeCarga from "../components/MensajeCarga";
-import MensajeError from "../components/MensajeError";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Pagination } from "../components/ui/Pagination";
+import { Alert } from "../components/ui/Alert";
+import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
 
 function obtenerErrorCatalogo() {
@@ -37,18 +41,17 @@ function Catalogo() {
             <EncabezadoCliente />
 
             <main className="max-w-6xl mx-auto px-6 py-10">
-                <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
-                    Catalogo
-                </p>
-                <h1 className="font-display text-4xl text-ink mt-1 mb-8">
-                    Nuestros productos
-                </h1>
+                <PageHeader
+                    etiqueta="Catálogo"
+                    titulo="Nuestros productos"
+                    className="mb-8"
+                />
 
-                {cargando && <MensajeCarga texto="Cargando productos..." />}
+                {cargando && <MensajeCarga texto="Cargando productos..." className="my-8" />}
 
-                {error && <MensajeError texto={error} />}
+                {error && <Alert tipo="error" texto={error} className="mb-8" />}
 
-                {!cargando && !error && (
+                {!cargando && !error && productos.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {productos.map(function (producto) {
                             return <ProductoCatalogoCard key={producto.id} producto={producto} />;
@@ -56,26 +59,21 @@ function Catalogo() {
                     </div>
                 )}
 
-                {paginacion && paginacion.totalPaginas > 1 && (
-                    <div className="flex items-center justify-center gap-4 mt-10 font-mono-ticket text-sm">
-                        <button
-                            onClick={function () { setPagina(function (actual) { return actual - 1; }); }}
-                            disabled={pagina === 1}
-                            className="disabled:opacity-30 text-forest underline"
-                        >
-                            Anterior
-                        </button>
-                        <span className="text-ink/60">
-                            Pagina {paginacion.paginaActual} de {paginacion.totalPaginas}
-                        </span>
-                        <button
-                            onClick={function () { setPagina(function (actual) { return actual + 1; }); }}
-                            disabled={pagina === paginacion.totalPaginas}
-                            className="disabled:opacity-30 text-forest underline"
-                        >
-                            Siguiente
-                        </button>
-                    </div>
+                {!cargando && !error && productos.length === 0 && (
+                    <EmptyState
+                        icono={Package}
+                        titulo="No hay productos disponibles"
+                        descripcion="Actualmente no contamos con productos en el catálogo. Volvé a consultar pronto."
+                    />
+                )}
+
+                {paginacion && (
+                    <Pagination
+                        pagina={paginacion.paginaActual}
+                        total={paginacion.totalPaginas}
+                        cambiar={setPagina}
+                        className="mt-10"
+                    />
                 )}
             </main>
         </div>

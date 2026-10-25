@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { CheckCircle2, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
 import { listarProductos } from "../api/productos";
 import { cobrarVenta, consultarEstadoQr, crearVentaDirecta } from "../api/ventas";
 import { usePeticion } from "../hooks/usePeticion";
 import { useAuthStore } from "../store/authStore";
-import { AlertaAdmin, CabeceraAdmin, CargaAdmin } from "../components/AdminUI";
+import { CargaAdmin } from "../components/AdminUI";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Select } from "../components/ui/Select";
+import { Alert } from "../components/ui/Alert";
 import { formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
 function obtenerErrorVenta(error) {
@@ -53,7 +58,7 @@ function AdminVentaRapida() {
     const [efectivoRecibido, setEfectivoRecibido] = useState("");
     const [ventaPendienteCobro, setVentaPendienteCobro] = useState(null);
     const [ultimaVenta, setUltimaVenta] = useState(null);
-    const [urlQr, setUrlQr] = useState("");
+    const [qrGenerado, setQrGenerado] = useState({ fuente: "", url: "" });
     const {
         data: productosResponse,
         isLoading: cargandoProductos,
@@ -77,35 +82,32 @@ function AdminVentaRapida() {
         });
     }, [cargarProductos]);
 
-    // Conserva la venta en curso al cambiar de sección, recargar o abrir otra
-    // pestaña del navegador. Se limpia después de una venta confirmada.
     useEffect(function () {
         localStorage.setItem(clavePersistencia, JSON.stringify({ items: items, metodoPago: metodoPago }));
     }, [clavePersistencia, items, metodoPago]);
 
     useEffect(function () {
         let activo = true;
-        setUrlQr("");
 
         const qrData = ventaPendienteCobro?.pagoQrData || ventaPendienteCobro?.pago?.qrData || ventaPendienteCobro?.pago?.qr || ventaPendienteCobro?.qrData;
         if (!qrData) return undefined;
 
         if (/^data:image\//i.test(qrData)) {
-            setUrlQr(qrData);
             return undefined;
         }
 
         QRCode.toDataURL(qrData, {
             width: 192,
             margin: 2,
-            errorCorrectionLevel: "H"
-        }).then(function (dataUrl) {
-            if (activo) setUrlQr(dataUrl);
+        }).then(function (url) {
+            if (activo) setQrGenerado({ fuente: qrData, url: url });
         }).catch(function () {
-            if (activo) setUrlQr("");
+            // Si falla la conversión del QR no se rompe la pantalla.
         });
 
-        return function () { activo = false; };
+        return function () {
+            activo = false;
+        };
     }, [ventaPendienteCobro]);
 
     useEffect(function () {
@@ -132,7 +134,6 @@ function AdminVentaRapida() {
                     setItems([]);
                     setEfectivoRecibido("");
                     await cargarProductos({ page: 1, limit: 100 });
-                    return;
                 }
             } catch {
                 // Se reintenta en el siguiente ciclo.
@@ -147,6 +148,11 @@ function AdminVentaRapida() {
             window.clearInterval(intervaloId);
         };
     }, [cargarProductos, metodoPago, ventaPendienteCobro?.id]);
+
+    const qrData = ventaPendienteCobro?.pagoQrData || ventaPendienteCobro?.pago?.qrData || ventaPendienteCobro?.pago?.qr || ventaPendienteCobro?.qrData;
+    const urlQr = /^data:image\//i.test(qrData || "")
+        ? qrData
+        : qrGenerado.fuente === qrData ? qrGenerado.url : "";
 
     const productos = useMemo(function () {
         return productosResponse?.data || productosResponse?.productos || [];
@@ -282,98 +288,255 @@ function AdminVentaRapida() {
 
     return (
         <section>
-            <CabeceraAdmin etiqueta="Caja" titulo="Venta rápida" />
-            <p className="mt-2 font-mono-ticket text-sm text-ink/60">Selecciona productos y registra la venta en un solo paso.</p>
+            <PageHeader
+                etiqueta="Caja"
+                titulo="Venta rápida"
+                descripcion="Selecciona productos y registra la venta en un solo paso."
+            />
 
             {ultimaVenta && (
-                <div className="mt-6 flex gap-3 border border-green-200 bg-green-50 p-4 text-green-800" role="status">
-                    <CheckCircle2 className="mt-0.5 shrink-0" aria-hidden="true" />
-                    <div className="font-mono-ticket text-sm">
-                        <p className="font-bold">Venta registrada correctamente.</p>
-                        <p>Comprobante: <span className="font-bold">{ultimaVenta.codigoComprobante || ultimaVenta.codigo}</span></p>
-                        {ultimaVenta.total != null && <p>Total: {formatoMonedaARS.format(Number(ultimaVenta.total))}</p>}
-                        {ultimaVenta.metodoPago && <p>Medio de pago: {ultimaVenta.metodoPago}</p>}
-                    </div>
-                </div>
+                <Alert
+                    variant="success"
+                    titulo="Venta registrada correctamente."
+                    className="mb-6"
+                >
+                    <p>Comprobante: <span className="font-bold">{ultimaVenta.codigoComprobante || ultimaVenta.codigo}</span></p>
+                    {ultimaVenta.total != null && <p>Total: {formatoMonedaARS.format(Number(ultimaVenta.total))}</p>}
+                    {ultimaVenta.metodoPago && <p>Medio de pago: {ultimaVenta.metodoPago}</p>}
+                </Alert>
             )}
 
-            {(errorProductos || errorVenta || errorCobro) && <AlertaAdmin texto={errorProductos || errorVenta || errorCobro} />}
+            {(errorProductos || errorVenta || errorCobro) && (
+                <Alert
+                    variant="error"
+                    texto={errorProductos || errorVenta || errorCobro}
+                    className="mb-6"
+                />
+            )}
 
-            <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
+            <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
                 <div className="border border-line bg-ticket">
                     <div className="border-b border-line p-4">
-                        <label htmlFor="buscar-producto" className="sr-only">Buscar producto</label>
-                        <div className="flex items-center gap-2 border border-line bg-paper px-3">
-                            <Search size={18} className="text-ink/50" aria-hidden="true" />
-                            <input id="buscar-producto" value={busqueda} onChange={function (event) { setBusqueda(event.target.value); }} placeholder="Buscar por nombre o categoría" className="w-full bg-transparent py-3 font-mono-ticket text-sm outline-none" />
-                        </div>
+                        <Input
+                            id="buscar-producto"
+                            value={busqueda}
+                            onChange={function (event) { setBusqueda(event.target.value); }}
+                            placeholder="Buscar por nombre o categoría..."
+                            icon={Search}
+                        />
                     </div>
-                    {cargandoProductos ? <CargaAdmin /> : (
+                    {cargandoProductos ? (
+                        <CargaAdmin />
+                    ) : (
                         <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
                             {productosVisibles.map(function (producto) {
                                 const stock = disponible(producto);
                                 const enVenta = items.find(function (item) { return item.productoId === producto.id; });
                                 const sinStock = stock === 0;
-                                return <button key={producto.id} type="button" disabled={sinStock || Boolean(ventaPendienteCobro)} onClick={function () { agregarProducto(producto); }} className="cursor-pointer p-4 text-left transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-45">
-                                    <p className="font-display text-lg">{producto.nombre}</p>
-                                    <p className="mt-1 font-mono-ticket text-xs text-ink/55">{producto.categoria || "Sin categoría"} · {stock} disponibles</p>
-                                    <div className="mt-3 flex items-center justify-between font-mono-ticket text-sm">
-                                        <span className="text-forest">{formatoMonedaARS.format(Number(producto.precio))}</span>
-                                        <span>{enVenta ? enVenta.cantidad + " en venta" : sinStock ? "Sin stock" : "Agregar +"}</span>
-                                    </div>
-                                </button>;
+                                return (
+                                    <button
+                                        key={producto.id}
+                                        type="button"
+                                        disabled={sinStock || Boolean(ventaPendienteCobro)}
+                                        onClick={function () { agregarProducto(producto); }}
+                                        className="cursor-pointer p-4 text-left transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-45"
+                                    >
+                                        <p className="font-display text-lg text-ink">{producto.nombre}</p>
+                                        <p className="mt-1 text-xs text-ink/55">
+                                            {producto.categoria || "Sin categoría"} · {stock} disponibles
+                                        </p>
+                                        <div className="mt-3 flex items-center justify-between text-sm">
+                                            <span className="font-mono-ticket text-forest font-bold">
+                                                {formatoMonedaARS.format(Number(producto.precio))}
+                                            </span>
+                                            <span className="text-xs">
+                                                {enVenta ? enVenta.cantidad + " en venta" : sinStock ? "Sin stock" : "+ Agregar"}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
                             })}
-                            {!productosVisibles.length && <p className="p-5 font-mono-ticket text-sm text-ink/60 sm:col-span-2">No se encontraron productos.</p>}
+                            {!productosVisibles.length && (
+                                <p className="p-5 text-sm text-ink/60 sm:col-span-2 text-center">
+                                    No se encontraron productos.
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
 
                 <aside className="h-fit border border-line bg-ticket xl:sticky xl:top-24">
-                    <div className="flex items-center gap-2 border-b border-line p-4"><ShoppingCart size={19} aria-hidden="true" /><h2 className="font-display text-xl">Venta actual</h2></div>
-                    {ventaPendienteCobro && <p role="status" className="border-b border-amber/40 bg-amber/15 p-4 font-mono-ticket text-xs">{metodoPago === "MercadoPago" ? "Venta registrada. Escaneá el QR y esperá a que el pago quede confirmado." : "La venta ya está registrada. Reintentá el cobro para evitar duplicarla."}</p>}
-                    {!items.length ? <p className="p-5 font-mono-ticket text-sm text-ink/60">Agrega productos para comenzar.</p> : <>
-                        <ul className="divide-y divide-line">
-                            {items.map(function (item) {
-                                return <li key={item.productoId} className="p-4">
-                                    <div className="flex justify-between gap-3"><p className="font-display">{item.nombre}</p><button type="button" disabled={Boolean(ventaPendienteCobro)} onClick={function () { cambiarCantidad(item.productoId, 0); }} className="cursor-pointer text-red-600 disabled:opacity-35" aria-label={"Quitar " + item.nombre}><Trash2 size={17} /></button></div>
-                                    <div className="mt-3 flex items-center justify-between"><div className="flex items-center gap-2"><button type="button" disabled={Boolean(ventaPendienteCobro)} onClick={function () { cambiarCantidad(item.productoId, item.cantidad - 1); }} className="cursor-pointer border border-line p-1 disabled:opacity-35" aria-label="Restar una unidad"><Minus size={14} /></button><span className="w-6 text-center font-mono-ticket text-sm">{item.cantidad}</span><button type="button" disabled={item.cantidad >= item.disponible || Boolean(ventaPendienteCobro)} onClick={function () { cambiarCantidad(item.productoId, item.cantidad + 1); }} className="cursor-pointer border border-line p-1 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Sumar una unidad"><Plus size={14} /></button></div><span className="font-mono-ticket text-sm">{formatoMonedaARS.format(item.precio * item.cantidad)}</span></div>
-                                </li>;
-                            })}
-                        </ul>
-                        <div className="border-t border-line p-4">
-                            <div className="flex items-center justify-between font-mono-ticket"><span className="text-sm uppercase tracking-wide text-ink/60">Total</span><span className="text-2xl text-forest">{formatoMonedaARS.format(total)}</span></div>
-                            <label htmlFor="metodo-pago" className="mt-5 block font-mono-ticket text-xs uppercase tracking-wide text-ink/60">Método de pago</label>
-                            <select id="metodo-pago" value={metodoPago} onChange={function (event) { setMetodoPago(event.target.value); }} disabled={registrando || cobrando || Boolean(ventaPendienteCobro)} className="mt-1 w-full border border-line bg-paper p-2.5 font-mono-ticket text-sm outline-none focus:border-forest">
-                                <option value="Efectivo">Efectivo</option>
-                                <option value="Tarjeta">Tarjeta</option>
-                                <option value="MercadoPago">Mercado Pago</option>
-                            </select>
-                            {metodoPago === "Efectivo" && <>
-                                <label htmlFor="efectivo-recibido" className="mt-5 block font-mono-ticket text-xs uppercase tracking-wide text-ink/60">Efectivo recibido</label>
-                                <input id="efectivo-recibido" type="text" inputMode="decimal" value={efectivoRecibido} onChange={function (event) { setEfectivoRecibido(event.target.value); }} placeholder="0,00" disabled={registrando || cobrando} className="mt-1 w-full border border-line bg-paper p-2.5 font-mono-ticket text-sm outline-none focus:border-forest disabled:opacity-60" />
-                                <p className="mt-3 flex justify-between font-mono-ticket text-sm"><span>Cambio</span><strong>{formatoMonedaARS.format((cambioCentavos || 0) / 100)}</strong></p>
-                                {efectivoInvalido && <p role="alert" className="mt-2 font-mono-ticket text-xs text-red-600">Ingresá un importe válido.</p>}
-                                {efectivoInsuficiente && <p role="alert" className="mt-2 font-mono-ticket text-xs text-red-600">El efectivo recibido es insuficiente.</p>}
-                                {cambioCentavos > 0 && <p role="status" className="mt-2 font-mono-ticket text-xs text-forest">Vuelto: {formatoMonedaARS.format(cambioCentavos / 100)}</p>}
-                            </>}
+                    <div className="flex items-center gap-2 border-b border-line p-4">
+                        <ShoppingCart size={19} aria-hidden="true" />
+                        <h2 className="font-display text-xl text-ink">Venta actual</h2>
+                    </div>
 
-                            {metodoPago === "MercadoPago" && ventaPendienteCobro && (
-                                <div className="mt-5 border border-line bg-paper p-3 text-center">
-                                    <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">Escanea para pagar</p>
-                                    {urlQr ? (
-                                        <img src={urlQr} alt="Código QR para pagar con Mercado Pago" className="mx-auto mt-3 h-40 w-40 object-contain" />
-                                    ) : (
-                                        <p className="mt-3 font-mono-ticket text-xs text-ink/60">Generando código QR...</p>
-                                    )}
-                                    <p className="mt-3 font-mono-ticket text-[11px] text-ink/60">
-                                        Estado: {esVentaPagada(ventaPendienteCobro) ? "Pago confirmado" : "Esperando pago"}
-                                    </p>
+                    {ventaPendienteCobro && (
+                        <Alert
+                            variant="warning"
+                            texto={
+                                metodoPago === "MercadoPago"
+                                    ? "Venta registrada. Escaneá el QR y esperá a que el pago quede confirmado."
+                                    : "La venta ya está registrada. Reintentá el cobro para evitar duplicarla."
+                            }
+                        />
+                    )}
+
+                    {!items.length ? (
+                        <p className="p-6 text-sm text-ink/60 text-center">
+                            Agrega productos para comenzar.
+                        </p>
+                    ) : (
+                        <>
+                            <ul className="divide-y divide-line max-h-72 overflow-y-auto">
+                                {items.map(function (item) {
+                                    return (
+                                        <li key={item.productoId} className="p-4">
+                                            <div className="flex justify-between gap-3">
+                                                <p className="font-display text-ink">{item.nombre}</p>
+                                                <button
+                                                    type="button"
+                                                    disabled={Boolean(ventaPendienteCobro)}
+                                                    onClick={function () { cambiarCantidad(item.productoId, 0); }}
+                                                    className="cursor-pointer text-red-600 disabled:opacity-35 hover:text-red-700"
+                                                    aria-label={"Quitar " + item.nombre}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                            <div className="mt-3 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        disabled={Boolean(ventaPendienteCobro)}
+                                                        onClick={function () { cambiarCantidad(item.productoId, item.cantidad - 1); }}
+                                                        className="cursor-pointer border border-line p-1 disabled:opacity-35 hover:bg-paper"
+                                                        aria-label="Restar una unidad"
+                                                    >
+                                                        <Minus size={13} />
+                                                    </button>
+                                                    <span className="w-6 text-center font-mono-ticket text-sm font-bold">
+                                                        {item.cantidad}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={item.cantidad >= item.disponible || Boolean(ventaPendienteCobro)}
+                                                        onClick={function () { cambiarCantidad(item.productoId, item.cantidad + 1); }}
+                                                        className="cursor-pointer border border-line p-1 disabled:cursor-not-allowed disabled:opacity-35 hover:bg-paper"
+                                                        aria-label="Sumar una unidad"
+                                                    >
+                                                        <Plus size={13} />
+                                                    </button>
+                                                </div>
+                                                <span className="font-mono-ticket text-sm font-bold">
+                                                    {formatoMonedaARS.format(item.precio * item.cantidad)}
+                                                </span>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+
+                            <div className="border-t border-line p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-ink/60">Total</span>
+                                    <span className="font-mono-ticket text-2xl text-forest font-bold">{formatoMonedaARS.format(total)}</span>
                                 </div>
-                            )}
 
-                            <button type="button" disabled={registrando || cobrando || Boolean(ventaPendienteCobro) || (metodoPago === "Efectivo" && (efectivoCentavos === null || efectivoCentavos <= 0 || efectivoCentavos < totalCentavos))} onClick={confirmarVenta} className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 bg-forest py-3 font-mono-ticket text-sm uppercase tracking-wide text-paper hover:bg-forest-dark disabled:cursor-wait disabled:opacity-60"><ShoppingCart size={17} aria-hidden="true" />{cobrando ? "Cobrando..." : registrando ? "Registrando..." : ventaPendienteCobro ? "Esperando pago" : metodoPago === "Efectivo" ? "Cobrar" : metodoPago === "MercadoPago" ? "Registrar venta" : "Cobrar y confirmar venta"}</button>
-                        </div>
-                    </>}
+                                <Select
+                                    id="metodo-pago"
+                                    label="Método de pago"
+                                    value={metodoPago}
+                                    onChange={function (event) { setMetodoPago(event.target.value); }}
+                                    disabled={registrando || cobrando || Boolean(ventaPendienteCobro)}
+                                    options={[
+                                        { value: "Efectivo", label: "Efectivo" },
+                                        { value: "Tarjeta", label: "Tarjeta" },
+                                        { value: "MercadoPago", label: "Mercado Pago" }
+                                    ]}
+                                />
+
+                                {metodoPago === "Efectivo" && (
+                                    <div className="space-y-3 pt-1">
+                                        <Input
+                                            id="efectivo-recibido"
+                                            label="Efectivo recibido"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={efectivoRecibido}
+                                            onChange={function (event) { setEfectivoRecibido(event.target.value); }}
+                                            placeholder="0,00"
+                                            disabled={registrando || cobrando}
+                                            error={
+                                                efectivoInvalido
+                                                    ? "Ingresá un importe válido."
+                                                    : efectivoInsuficiente
+                                                    ? "El efectivo recibido es insuficiente."
+                                                    : null
+                                            }
+                                        />
+
+                                        <p className="flex justify-between text-sm">
+                                            <span>Cambio</span>
+                                            <strong className="font-mono-ticket">{formatoMonedaARS.format((cambioCentavos || 0) / 100)}</strong>
+                                        </p>
+
+                                        {cambioCentavos > 0 && (
+                                            <p role="status" className="text-xs text-forest">
+                                                Vuelto: <span className="font-mono-ticket">{formatoMonedaARS.format(cambioCentavos / 100)}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {metodoPago === "MercadoPago" && ventaPendienteCobro && (
+                                    <div className="border border-line bg-paper p-3 text-center">
+                                        <p className="text-xs text-ink/50">
+                                            Escanea para pagar
+                                        </p>
+                                        {urlQr ? (
+                                            <img
+                                                src={urlQr}
+                                                alt="Código QR para pagar con Mercado Pago"
+                                                className="mx-auto mt-3 h-40 w-40 object-contain"
+                                            />
+                                        ) : (
+                                            <p className="mt-3 text-xs text-ink/60">
+                                                Generando código QR...
+                                            </p>
+                                        )}
+                                        <p className="mt-3 text-[11px] text-ink/60">
+                                            Estado: {esVentaPagada(ventaPendienteCobro) ? "Pago confirmado" : "Esperando pago"}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="button"
+                                    disabled={
+                                        registrando ||
+                                        cobrando ||
+                                        Boolean(ventaPendienteCobro) ||
+                                        (metodoPago === "Efectivo" &&
+                                            (efectivoCentavos === null || efectivoCentavos <= 0 || efectivoCentavos < totalCentavos))
+                                    }
+                                    onClick={confirmarVenta}
+                                    loading={registrando || cobrando}
+                                    loadingText={cobrando ? "Cobrando..." : "Registrando..."}
+                                    icon={ShoppingCart}
+                                    className="w-full"
+                                >
+                                    {ventaPendienteCobro
+                                        ? "Esperando pago"
+                                        : metodoPago === "Efectivo"
+                                        ? "Cobrar"
+                                        : metodoPago === "MercadoPago"
+                                        ? "Registrar venta"
+                                        : "Cobrar y confirmar venta"}
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </aside>
             </div>
         </section>

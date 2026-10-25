@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { cancelarVenta, cobrarVenta, obtenerVenta } from "../api/ventas";
-import { AlertaAdmin, CargaAdmin, EstadoVenta } from "../components/AdminUI";
+import { CargaAdmin } from "../components/AdminUI";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Card, CardTitle } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Alert } from "../components/ui/Alert";
 import { usePeticion } from "../hooks/usePeticion";
 import { convertirACentavos, formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
@@ -52,123 +58,115 @@ function AdminVentaDetalle() {
         : null;
 
     if (cargando) return <CargaAdmin />;
-    if (error && !venta) return <AlertaAdmin texto={error} />;
+    if (error && !venta) return <Alert tipo="error" texto={error} className="mt-4" />;
 
     return (
         <section>
-            <Link to="/admin/ventas" className="font-mono-ticket text-sm text-forest hover:underline">
-                ← Volver a ventas
-            </Link>
+            <PageHeader
+                volverA="/admin/ventas"
+                textoVolver="Volver a ventas"
+                etiqueta="Venta"
+                titulo={venta ? venta.codigoComprobante : "Detalle de venta"}
+                descripcion={venta ? new Date(venta.fecha).toLocaleString("es-AR") : ""}
+                acciones={venta && <Badge estado={venta.estado} size="md" />}
+            />
 
-            {error && <AlertaAdmin texto={error} />}
-            {errorAccion && <AlertaAdmin texto={errorAccion} />}
+            {error && <Alert tipo="error" texto={error} className="mb-4" />}
+            {errorAccion && <Alert tipo="error" texto={errorAccion} className="mb-4" />}
 
             {venta && (
-                <>
-                    <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-                        <div>
-                            <p className="font-mono-ticket text-xs uppercase tracking-wide text-forest">Venta</p>
-                            <h1 className="mt-1 font-display text-3xl">{venta.codigoComprobante}</h1>
-                            <p className="mt-2 font-mono-ticket text-sm text-ink/60">
-                                {new Date(venta.fecha).toLocaleString("es-AR")}
-                            </p>
-                        </div>
-                        <EstadoVenta estado={venta.estado} />
-                    </div>
-
-                    <div className="mt-6 grid gap-5 lg:grid-cols-3">
-                        <div className="border border-line bg-ticket p-5 lg:col-span-2">
-                            <h2 className="font-display text-xl mb-4">Productos</h2>
-                            <div className="divide-y divide-line">
-                                {venta.detalles.map(function (d) {
-                                    return (
-                                        <div key={d.id} className="flex justify-between py-3 font-mono-ticket text-sm">
-                                            <span>{d.producto.nombre} × {d.cantidad}</span>
-                                            <span className="font-medium">${Number(d.subtotal).toFixed(2)}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="mt-5 border-t border-line pt-4 text-right font-mono-ticket text-xl text-forest font-bold">
-                                Total: ${Number(venta.total).toFixed(2)}
-                            </div>
-                        </div>
-
-                        <aside className="border border-line bg-ticket p-5">
-                            <h2 className="font-display text-xl mb-4">Cliente</h2>
-                            <div className="space-y-2">
-                                <p className="font-mono-ticket text-sm">
-                                    {venta.clienteNombre
-                                        ? [venta.clienteNombre, venta.clienteApellido].filter(Boolean).join(" ")
-                                        : "Venta anónima"}
-                                </p>
-                                {venta.clienteEmail && (
-                                    <p className="font-mono-ticket text-sm text-ink/60">{venta.clienteEmail}</p>
-                                )}
-                                {venta.clienteDni && (
-                                    <p className="font-mono-ticket text-sm text-ink/60">DNI: {venta.clienteDni}</p>
-                                )}
-                            </div>
-
-                            {venta.estado === "PENDIENTE" && (
-                                <div className="mt-6 grid gap-2">
-                                    <div className="mb-2 border-t border-line pt-4">
-                                        <p className="flex justify-between font-mono-ticket text-sm">
-                                            <span>Total</span>
-                                            <strong>{formatoMonedaARS.format(Number(venta.total))}</strong>
-                                        </p>
-                                        <label htmlFor="efectivo-recibido" className="mt-4 block font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                            Efectivo recibido
-                                        </label>
-                                        <input
-                                            id="efectivo-recibido"
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={efectivoRecibido}
-                                            onChange={function (event) { setEfectivoRecibido(event.target.value); }}
-                                            placeholder="0,00"
-                                            disabled={accion}
-                                            className="mt-1 w-full border border-line bg-paper p-2.5 font-mono-ticket text-sm outline-none focus:border-forest disabled:opacity-60"
-                                        />
-                                        {efectivoInvalido && (
-                                            <p role="alert" className="mt-2 font-mono-ticket text-xs text-red-600">
-                                                Ingresá un importe válido.
-                                            </p>
-                                        )}
-                                        <p className="mt-3 flex justify-between font-mono-ticket text-sm">
-                                            <span>Cambio</span>
-                                            <strong>{formatoMonedaARS.format((cambioCentavos || 0) / 100)}</strong>
-                                        </p>
-                                        {efectivoInsuficiente && (
-                                            <p role="alert" className="mt-2 font-mono-ticket text-xs text-red-600">
-                                                El efectivo recibido es insuficiente.
-                                            </p>
-                                        )}
-                                        {cambioCentavos > 0 && (
-                                            <p role="status" className="mt-2 font-mono-ticket text-xs text-forest">
-                                                Vuelto: {formatoMonedaARS.format(cambioCentavos / 100)}
-                                            </p>
-                                        )}
+                <div className="grid gap-5 lg:grid-cols-3">
+                    <Card className="lg:col-span-2">
+                        <CardTitle className="mb-4">Productos</CardTitle>
+                        <div className="divide-y divide-line">
+                            {venta.detalles.map(function (d) {
+                                return (
+                                    <div key={d.id} className="flex justify-between py-3 text-sm">
+                                        <span>{d.producto.nombre} × {d.cantidad}</span>
+                                        <span className="font-mono-ticket font-medium">${Number(d.subtotal).toFixed(2)}</span>
                                     </div>
-                                    <button
+                                );
+                            })}
+                        </div>
+                        <div className="mt-5 border-t border-line pt-4 text-right text-xl text-forest font-bold">
+                            Total: ${Number(venta.total).toFixed(2)}
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <CardTitle className="mb-4">Cliente</CardTitle>
+                        <div className="space-y-2 text-sm">
+                            <p className="font-medium">
+                                {venta.clienteNombre
+                                    ? [venta.clienteNombre, venta.clienteApellido].filter(Boolean).join(" ")
+                                    : "Venta anónima"}
+                            </p>
+                            {venta.clienteEmail && (
+                                <p className="text-ink/60">{venta.clienteEmail}</p>
+                            )}
+                            {venta.clienteDni && (
+                                <p className="text-ink/60">DNI: {venta.clienteDni}</p>
+                            )}
+                        </div>
+
+                        {venta.estado === "PENDIENTE" && (
+                            <div className="mt-6 border-t border-line pt-4 space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span>Total</span>
+                                    <strong className="font-mono-ticket">{formatoMonedaARS.format(Number(venta.total))}</strong>
+                                </div>
+
+                                <Input
+                                    label="Efectivo recibido"
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={efectivoRecibido}
+                                    onChange={function (event) { setEfectivoRecibido(event.target.value); }}
+                                    placeholder="0,00"
+                                    disabled={accion}
+                                    error={
+                                        efectivoInvalido
+                                            ? "Ingresá un importe válido."
+                                            : efectivoInsuficiente
+                                            ? "El efectivo recibido es insuficiente."
+                                            : null
+                                    }
+                                />
+
+                                <div className="flex justify-between text-sm pt-1">
+                                    <span>Cambio</span>
+                                    <strong className="font-mono-ticket">{formatoMonedaARS.format((cambioCentavos || 0) / 100)}</strong>
+                                </div>
+
+                                {cambioCentavos > 0 && (
+                                    <p role="status" className="text-xs text-forest">
+                                        Vuelto: <span className="font-mono-ticket">{formatoMonedaARS.format(cambioCentavos / 100)}</span>
+                                    </p>
+                                )}
+
+                                <div className="pt-2 flex flex-col gap-2">
+                                    <Button
                                         disabled={accion || efectivoCentavos === null || efectivoCentavos <= 0 || totalCentavos === null || efectivoCentavos < totalCentavos}
                                         onClick={cobrarPendiente}
-                                        className="cursor-pointer bg-forest p-2 font-mono-ticket text-sm text-paper disabled:opacity-60 hover:bg-forest-dark transition-colors"
+                                        loading={accion}
+                                        loadingText="Cobrando..."
+                                        className="w-full"
                                     >
-                                        {accion ? "Cobrando..." : "Cobrar"}
-                                    </button>
-                                    <button
+                                        Cobrar
+                                    </Button>
+                                    <Button
+                                        variant="danger-outline"
                                         disabled={accion}
                                         onClick={function () { ejecutarAccion(cancelarVenta); }}
-                                        className="cursor-pointer border border-red-600 p-2 font-mono-ticket text-sm text-red-600 disabled:opacity-60 hover:bg-red-50 transition-colors"
+                                        className="w-full"
                                     >
-                                        Cancelar
-                                    </button>
+                                        Cancelar venta
+                                    </Button>
                                 </div>
-                            )}
-                        </aside>
-                    </div>
-                </>
+                            </div>
+                        )}
+                    </Card>
+                </div>
             )}
         </section>
     );

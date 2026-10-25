@@ -14,7 +14,7 @@ function Dashboard() {
     return (
         <div className="min-h-screen bg-paper flex items-center justify-center">
             <div className="text-center">
-                <p className="font-mono-ticket text-xs uppercase tracking-[0.25em] text-ink/50">
+                <p className="font-mono-ticket text-xs text-ink/50">
                     Sesion iniciada
                 </p>
                 <h1 className="font-display text-3xl text-ink mt-2">
@@ -25,7 +25,7 @@ function Dashboard() {
                 </p>
                 <button
                     onClick={manejarCerrarSesion}
-                    className="mt-8 font-mono-ticket text-sm uppercase tracking-wide text-forest border-b-2 border-forest pb-1"
+                    className="mt-8 font-mono-ticket text-sm text-forest border-b-2 border-forest pb-1"
                 >
                     Cerrar sesion
                 </button>
