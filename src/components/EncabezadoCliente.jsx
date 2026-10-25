@@ -18,91 +18,64 @@ function EncabezadoCliente() {
     }
 
     return (
-        <header className="bg-forest text-paper">
+        <header className="border-b border-forest-dark bg-forest text-paper">
             {ultimoComprobante && ultimoComprobante.estado === "PENDIENTE" && (
-                <div
-                    role="status"
-                    className="px-6 py-2 text-xs font-mono-ticket uppercase tracking-wide bg-amber text-ink font-semibold flex items-center justify-between transition-colors"
-                >
-                    <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
+                <div role="status" className="bg-amber/25 px-4 py-2.5 text-sm text-ink font-medium">
+                    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
                             <AlertCircle size={15} aria-hidden="true" />
-                            <span>
-                                Tenés un pago PENDIENTE de tu compra ({ultimoComprobante.codigo})
-                            </span>
+                            <span>Tenés un pago pendiente de tu compra ({ultimoComprobante.codigo})</span>
                         </div>
-                        <Link
-                            to={"/comprobante/" + ultimoComprobante.codigo}
-                            className="underline font-bold hover:opacity-80 transition-opacity ml-4 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ink"
-                        >
-                            Pagar o Ver Comprobante →
+                        <Link to={"/comprobante/" + ultimoComprobante.codigo} className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity sm:ml-4 sm:whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ink">
+                            Pagar o ver comprobante →
                         </Link>
                     </div>
                 </div>
             )}
 
-            <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-                <Link to="/catalogo" className="font-display text-2xl no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+            <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <Link to="/catalogo" className="font-display text-xl font-semibold text-paper no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2 sm:text-2xl">
                     Sistema POS
                 </Link>
 
-                <nav aria-label="Navegación principal" className="flex items-center gap-6 font-mono-ticket text-sm">
-                    {usuario && (
-                        <span className="text-paper/90">
-                            Hola, {usuario.nombre}
-                        </span>
-                    )}
+                <nav aria-label="Navegación principal" className="flex max-w-full items-center gap-1 overflow-x-auto text-sm">
+                    {usuario && <span className="hidden whitespace-nowrap px-3 py-2 text-paper/70 lg:inline">Hola, {usuario.nombre}</span>}
 
-                    <Link to="/catalogo" className="uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                    <Link to="/catalogo" className="whitespace-nowrap rounded px-3 py-2 text-paper/85 no-underline transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                         Catálogo
                     </Link>
 
                     {ultimoComprobante && ultimoComprobante.estado === "PENDIENTE" && (
-                        <Link
-                            to={"/comprobante/" + ultimoComprobante.codigo}
-                            className="flex items-center gap-1.5 uppercase tracking-wide no-underline px-2.5 py-1 rounded text-xs transition-colors bg-amber text-ink font-bold animate-pulse focus-visible:outline-2 focus-visible:outline-paper"
-                        >
+                        <Link to={"/comprobante/" + ultimoComprobante.codigo} className="flex items-center gap-1.5 whitespace-nowrap rounded bg-amber px-3 py-2 text-xs font-semibold text-ink no-underline transition-colors hover:bg-amber/80 focus-visible:outline-2 focus-visible:outline-forest">
                             <FileText size={14} aria-hidden="true" />
-                            <span>Pago Pendiente</span>
+                            <span>Pago pendiente</span>
                         </Link>
                     )}
 
                     {esClienteRegistrado && (
-                        <Link to="/mi-perfil" className="uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                        <Link to="/mi-perfil" className="whitespace-nowrap rounded px-3 py-2 text-paper/85 no-underline transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                             Mi perfil
                         </Link>
                     )}
 
-                    <Link
-                        to="/carrito"
-                        aria-label={`Carrito de compras, ${cantidadCarrito} ${cantidadCarrito === 1 ? "producto" : "productos"}`}
-                        className="relative flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2"
-                    >
+                    <Link to="/carrito" aria-label={`Carrito de compras, ${cantidadCarrito} ${cantidadCarrito === 1 ? "producto" : "productos"}`} className="relative flex items-center gap-2 whitespace-nowrap rounded px-3 py-2 text-paper/85 no-underline transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                         <ShoppingCart size={18} aria-hidden="true" />
                         <span>Carrito</span>
-                        {cantidadCarrito > 0 && (
-                            <span className="bg-amber text-ink text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" aria-hidden="true">
-                                {cantidadCarrito}
-                            </span>
-                        )}
+                        {cantidadCarrito > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber text-xs font-bold text-ink" aria-hidden="true">{cantidadCarrito}</span>}
                     </Link>
 
                     {usuario ? (
-                        <button
-                            type="button"
-                            onClick={manejarCerrarSesion}
-                            className="flex items-center gap-2 uppercase tracking-wide hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2 cursor-pointer"
-                        >
+                        <button type="button" onClick={manejarCerrarSesion} className="flex items-center gap-2 whitespace-nowrap rounded px-3 py-2 text-paper/85 transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2 cursor-pointer">
                             <LogOut size={18} aria-hidden="true" />
                             Salir
                         </button>
                     ) : (
-                        <div className="flex items-center gap-4">
-                            <Link to="/login-cliente" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                        <div className="flex items-center gap-1">
+                            <Link to="/login-cliente" className="flex items-center gap-2 whitespace-nowrap rounded px-3 py-2 text-paper/85 no-underline transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                                 <LogIn size={18} aria-hidden="true" />
                                 Iniciar sesión
                             </Link>
-                            <Link to="/registro" className="flex items-center gap-2 uppercase tracking-wide no-underline hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                            <Link to="/registro" className="flex items-center gap-2 whitespace-nowrap rounded bg-amber px-3 py-2 text-ink no-underline transition-colors hover:bg-amber/80 focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                                 <LogIn size={18} aria-hidden="true" />
                                 Crear cuenta
                             </Link>

@@ -8,6 +8,7 @@ import ProductoDetalle from "./pages/ProductoDetalle";
 import Carrito from "./pages/Carrito";
 import ReimprimirComprobante from "./pages/ReimprimirComprobante";
 import MiPerfil from "./pages/MiPerfil";
+import HistorialCompras from "./pages/HistorialCompras";
 import RutaProtegida from "./components/RutaProtegida";
 import AdminLayout from "./components/AdminLayout";
 import AdminProductos from "./pages/AdminProductos";
@@ -45,6 +46,16 @@ function App() {
                     element={
                         <RutaProtegida>
                             <Dashboard />
+                        </RutaProtegida>
+                    }
+                />
+
+                {/* Rutas protegidas: clientes autenticados. */}
+                <Route
+                    path="/historial"
+                    element={
+                        <RutaProtegida rolesPermitidos={["Cliente"]}>
+                            <HistorialCompras />
                         </RutaProtegida>
                     }
                 />

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import PanelAuth from "./PanelAuth";
+import { Input } from "./ui/Input";
+import { Button } from "./ui/Button";
+import { Alert } from "./ui/Alert";
 
 function FormularioLogin({ etiqueta, titulo, textoBoton, mensajeExito, children }) {
     const [email, setEmail] = useState("");
@@ -24,50 +27,43 @@ function FormularioLogin({ etiqueta, titulo, textoBoton, mensajeExito, children 
     return (
         <PanelAuth etiqueta={etiqueta} titulo={titulo}>
             {mensajeExito && (
-                <p className="text-center font-mono-ticket text-sm text-forest mb-5">
+                <p className="text-center text-sm text-forest mb-5 font-semibold">
                     {mensajeExito}
                 </p>
             )}
             <form onSubmit={manejarEnvio} className="space-y-5">
-                <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                        Email
-                    </label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={function (evento) { setEmail(evento.target.value); }}
-                        required
-                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                        placeholder="tucorreo@ejemplo.com"
-                    />
-                </div>
+                <Input
+                    label="Email"
+                    type="email"
+                    variant="line"
+                    value={email}
+                    onChange={function (evento) { setEmail(evento.target.value); }}
+                    required
+                    placeholder="tucorreo@ejemplo.com"
+                />
 
-                <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                        Contraseña
-                    </label>
-                    <input
-                        type="password"
-                        value={contrasena}
-                        onChange={function (evento) { setContrasena(evento.target.value); }}
-                        required
-                        className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                        placeholder="••••••••"
-                    />
-                </div>
+                <Input
+                    label="Contraseña"
+                    type="password"
+                    variant="line"
+                    value={contrasena}
+                    onChange={function (evento) { setContrasena(evento.target.value); }}
+                    required
+                    placeholder="••••••••"
+                />
 
-                {error && (
-                    <p className="text-sm text-red-600 font-mono-ticket">{error}</p>
-                )}
+                {error && <Alert tipo="error" texto={error} />}
 
-                <button
+                <Button
                     type="submit"
-                    disabled={cargando}
-                    className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 mt-2 transition-colors"
+                    size="xl"
+                    loading={cargando}
+                    loadingText="Ingresando..."
+                    className="w-full mt-2"
                 >
-                    {cargando ? "Ingresando..." : textoBoton}
-                </button>
+                    {textoBoton}
+                </Button>
+
                 {children}
             </form>
         </PanelAuth>

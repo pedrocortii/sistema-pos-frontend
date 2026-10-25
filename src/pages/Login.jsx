@@ -12,7 +12,7 @@ function Login() {
             textoBoton="Ingresar"
             mensajeExito={registroExitoso ? "Cuenta creada correctamente. Ya podes iniciar sesion." : ""}
         >
-            <p className="text-center font-mono-ticket text-sm text-ink/60">
+            <p className="text-center text-sm text-ink/60">
                 Es cliente?{" "}
                 <Link to="/catalogo" className="text-forest underline">
                     Ir al catalogo

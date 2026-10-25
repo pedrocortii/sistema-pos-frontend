@@ -1,30 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
 import { ajustarStock, listarStock } from "../api/stock";
 import AjustarStockModal from "../components/AjustarStockModal";
-import { AlertaAdmin, CabeceraAdmin, CargaAdmin, PaginacionAdmin } from "../components/AdminUI";
-import { usePeticion } from "../hooks/usePeticion";
+import { PageHeader } from "../components/ui/PageHeader";
+import { TableBody, TableEmpty, TableHead, TableHeader } from "../components/ui/Table";
+import { Pagination } from "../components/ui/Pagination";
+import { DataTable } from "../components/ui/DataTable";
+import { FilterBar } from "../components/ui/FilterBar";
+import { AdminStockRow } from "../components/AdminStockRow";
 import { useModal } from "../hooks/useModal";
 import { useAuthStore } from "../store/authStore";
-import ImagenProducto from "../components/ImagenProducto";
+import { useDataTable } from "../hooks/useDataTable";
 
 function AdminStock() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const esAdministrador = usuario?.rol === "Administrador";
-    const { data: stockResponse = {}, isLoading: cargando, error, execute: cargar } = usePeticion(listarStock);
     const { open, close, modalData: modal } = useModal();
-    const [bajo, setBajo] = useState(false);
-    const [pagina, setPagina] = useState(1);
-    const [guardando, setGuardando] = useState(false);
 
-    // Extraemos la lista de items del objeto de respuesta del servidor
+    const {
+        data: stockResponse,
+        isLoading: cargando,
+        error,
+        page: pagina,
+        setPage,
+        setFilter,
+        filters,
+        refresh
+    } = useDataTable(listarStock, {
+        initialParams: { limit: 10 }
+    });
+
     const items = stockResponse?.data;
-
-    useEffect(function () {
-        cargar().catch(function () {
-            // El error queda disponible para que la pantalla lo muestre.
-        });
-    }, [cargar]);
+    const bajo = filters.bajo === "true" || filters.bajo === true;
 
     const datos = useMemo(function () {
         return (items || []).filter(function (p) {
@@ -35,14 +41,16 @@ function AdminStock() {
     const total = Math.max(1, Math.ceil(datos.length / 10));
     const visibles = datos.slice((pagina - 1) * 10, pagina * 10);
 
+    const [guardando, setGuardando] = useState(false);
+
     async function guardar(datos) {
         setGuardando(true);
         try {
             await ajustarStock(modal.id, datos);
             close();
-            await cargar();
+            await refresh();
         } catch {
-            // El error queda disponible en usePeticion.
+            // El error queda disponible en useDataTable -> usePeticion.
         } finally {
             setGuardando(false);
         }
@@ -50,75 +58,59 @@ function AdminStock() {
 
     return (
         <section>
-            <CabeceraAdmin etiqueta="Stock" titulo="Inventario" />
-            <label className="mt-6 flex w-fit items-center gap-2 font-mono-ticket text-sm">
-                <input
-                    type="checkbox"
-                    checked={bajo}
-                    onChange={function (e) {
-                        setBajo(e.target.checked);
-                        setPagina(1);
-                    }}
-                />
-                Mostrar solo stock bajo
-            </label>
-            {error && <AlertaAdmin texto={error} />}
-            {cargando ? (
-                <CargaAdmin />
-            ) : (
-                <div className="mt-5 overflow-x-auto border border-line bg-ticket">
-                    <table className="w-full min-w-175 text-left">
-                        <thead className="border-b border-line bg-paper font-mono-ticket text-xs uppercase text-ink/60">
-                            <tr>
-                                <th className="p-3">Imagen</th>
-                                <th className="p-3">Producto</th>
-                                <th>Actual</th>
-                                <th>Reservado</th>
-                                <th>Disponible</th>
-                                {esAdministrador && <th className="p-3">Acciones</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {visibles.map(function (p) {
-                                const esBajo = p.stockDisponible <= 5;
-                                return (
-                                    <tr key={p.id} className="border-b border-line">
-                                        <td className="p-3">
-                                            <ImagenProducto
-                                                imagen={p.imagen}
-                                                alt={"Imagen de " + p.nombre}
-                                                className="h-10 w-10 rounded object-cover"
-                                            />
-                                        </td>
-                                        <td>{p.nombre}</td>
-                                        <td>{p.stock}</td>
-                                        <td>{p.stockReservado}</td>
-                                        <td>
-                                            {p.stockDisponible}{" "}
-                                            {esBajo && (
-                                                <span className="ml-2 rounded bg-red-100 px-2 py-1 font-mono-ticket text-xs text-red-700">
-                                                    Stock bajo
-                                                </span>
-                                            )}
-                                        </td>
-                                        {esAdministrador && (
-                                            <td className="p-3">
-                                                <button
-                                                    onClick={function () { open(p); }}
-                                                    className="flex cursor-pointer items-center gap-1 text-forest"
-                                                >
-                                                    <SlidersHorizontal size={16} />Ajustar
-                                                </button>
-                                            </td>
-                                        )}
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-            <PaginacionAdmin pagina={pagina} total={total} cambiar={setPagina} />
+            <PageHeader etiqueta="Stock" titulo="Inventario" />
+
+            <FilterBar>
+                <label className="flex w-fit cursor-pointer items-center gap-2 text-sm select-none">
+                    <input
+                        type="checkbox"
+                        checked={bajo}
+                        onChange={function (e) {
+                            setFilter("bajo", e.target.checked);
+                        }}
+                        className="cursor-pointer accent-forest h-4 w-4"
+                    />
+                    Mostrar solo stock bajo
+                </label>
+            </FilterBar>
+
+            <DataTable
+                isLoading={cargando}
+                error={error}
+                data={visibles}
+            >
+                <TableHeader>
+                    <tr className="border-b border-line bg-paper text-xs text-ink/60">
+                        <TableHead className="w-16">Imagen</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead>Actual</TableHead>
+                        <TableHead>Reservado</TableHead>
+                        <TableHead>Disponible</TableHead>
+                        {esAdministrador && <TableHead className="text-right">Acciones</TableHead>}
+                    </tr>
+                </TableHeader>
+                <TableBody className="divide-y divide-line">
+                    {visibles.map(function (p) {
+                        return (
+                            <AdminStockRow
+                                key={p.id}
+                                producto={p}
+                                esAdministrador={esAdministrador}
+                                onAdjust={() => open(p)}
+                            />
+                        );
+                    })}
+                    {!visibles.length && (
+                        <TableEmpty
+                            colSpan={esAdministrador ? 6 : 5}
+                            mensaje="No se encontraron productos en el inventario."
+                        />
+                    )}
+                </TableBody>
+            </DataTable>
+
+            <Pagination pagina={pagina} total={total} cambiar={setPage} />
+
             {esAdministrador && modal && (
                 <AjustarStockModal
                     producto={modal}

@@ -117,7 +117,7 @@ function Registro() {
         <PanelAuth etiqueta="Cuenta de cliente" titulo="Crear cuenta">
             <form onSubmit={handleSubmit(manejarEnvio)} className="space-y-5">
                 <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                    <label className="text-xs text-ink/60">
                         Nombre
                     </label>
                     <input
@@ -130,7 +130,7 @@ function Registro() {
                 </div>
 
                 <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                    <label className="text-xs text-ink/60">
                         Apellido
                     </label>
                     <input
@@ -143,7 +143,7 @@ function Registro() {
                 </div>
 
                 <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                    <label className="text-xs text-ink/60">
                         DNI
                     </label>
                     <input
@@ -156,7 +156,7 @@ function Registro() {
                 </div>
 
                 <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                    <label className="text-xs text-ink/60">
                         Email
                     </label>
                     <input
@@ -169,7 +169,7 @@ function Registro() {
                 </div>
 
                 <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                    <label className="text-xs text-ink/60">
                         Contraseña
                     </label>
                     <input
@@ -182,7 +182,7 @@ function Registro() {
                 </div>
 
                 <div>
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
+                    <label className="text-xs text-ink/60">
                         Confirmar contraseña
                     </label>
                     <input
@@ -197,7 +197,7 @@ function Registro() {
                 </div>
 
                 {error && (
-                    <p role="alert" className="text-sm text-red-600 font-mono-ticket">
+                    <p role="alert" className="text-sm text-red-600">
                         {error}
                     </p>
                 )}
@@ -205,13 +205,13 @@ function Registro() {
                 <button
                     type="submit"
                     disabled={cargando}
-                    className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 transition-colors"
+                    className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper text-sm py-3 transition-colors"
                 >
                     {cargando ? "Creando cuenta..." : "Crear cuenta"}
                 </button>
             </form>
 
-            <p className="text-center font-mono-ticket text-sm text-ink/60 mt-6">
+            <p className="text-center text-sm text-ink/60 mt-6">
                 Ya tienes una cuenta?{" "}
                 <Link to="/login-cliente" className="text-forest underline">
                     Iniciar sesión
