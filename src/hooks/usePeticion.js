@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 function obtenerMensajeError(error) {
     return error.response?.data?.mensaje || error.message || "Ocurrió un error inesperado";
@@ -11,22 +11,30 @@ export function usePeticion(peticion, opciones = {}) {
     const [respuesta, setRespuesta] = useState(null);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
+    const ultimaPeticion = useRef(0);
     const formatearErrorPersonalizado = opciones.obtenerMensajeError;
 
     const ejecutar = useCallback(async (...args) => {
+        const numeroPeticion = ++ultimaPeticion.current;
         setCargando(true);
         setError(null);
 
         try {
             const resultado = await peticion(...args);
-            setRespuesta(resultado);
+            if (ultimaPeticion.current === numeroPeticion) {
+                setRespuesta(resultado);
+            }
             return resultado;
         } catch (errorPeticion) {
-            const formatearError = formatearErrorPersonalizado || obtenerMensajeError;
-            setError(formatearError(errorPeticion));
+            if (ultimaPeticion.current === numeroPeticion) {
+                const formatearError = formatearErrorPersonalizado || obtenerMensajeError;
+                setError(formatearError(errorPeticion));
+            }
             throw errorPeticion;
         } finally {
-            setCargando(false);
+            if (ultimaPeticion.current === numeroPeticion) {
+                setCargando(false);
+            }
         }
     }, [peticion, formatearErrorPersonalizado]);
 
