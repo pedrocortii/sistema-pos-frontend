@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Package, Search } from "lucide-react";
 import { listarProductos } from "../api/productos";
+import { listarPromocionesVigentes } from "../api/promociones";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import ProductoCatalogoCard from "../components/ProductoCatalogoCard";
 import MensajeCarga from "../components/MensajeCarga";
@@ -9,6 +10,7 @@ import { Pagination } from "../components/ui/Pagination";
 import { Alert } from "../components/ui/Alert";
 import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
+import BannerPromociones from "../components/BannerPromociones";
 
 function obtenerErrorCatalogo() {
     return "No se pudieron cargar los productos.";
@@ -20,6 +22,7 @@ function Catalogo() {
     const [busqueda, setBusqueda] = useState("");
     const [categoria, setCategoria] = useState("");
     const { respuesta, cargando, error, ejecutar } = usePeticion(listarProductos, { obtenerMensajeError: obtenerErrorCatalogo });
+    const { respuesta: promocionesRespuesta, cargando: promocionesCargando, ejecutar: ejecutarPromociones } = usePeticion(listarPromocionesVigentes);
     const productos = respuesta?.data || [];
     const categorias = respuesta?.categorias || [];
     const hayFiltros = Boolean(busqueda.trim() || categoria);
@@ -55,6 +58,12 @@ function Catalogo() {
         };
     }, [busqueda, categoria, pagina, ejecutar]);
 
+    useEffect(function () {
+        ejecutarPromociones().catch(function () {
+            // Las promociones son complementarias y no deben bloquear el catálogo.
+        });
+    }, [ejecutarPromociones]);
+
     function limpiarFiltros() {
         setBusqueda("");
         setCategoria("");
@@ -71,6 +80,8 @@ function Catalogo() {
                     titulo="Nuestros productos"
                     className="mb-8"
                 />
+
+                <BannerPromociones promociones={promocionesRespuesta?.promociones} cargando={promocionesCargando} />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                     <div>
