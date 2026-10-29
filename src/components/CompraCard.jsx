@@ -1,17 +1,115 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronUp, FileText, Package, Calendar, CreditCard } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Package, Calendar, CreditCard, RefreshCw, ShoppingCart } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
+import { Alert } from "./ui/Alert";
 import { formatoMonedaARS } from "../utils/moneda";
+import { obtenerProducto } from "../api/productos";
+import { obtenerVenta } from "../api/ventas";
+import { useCarritoStore } from "../store/carritoStore";
+
+function agruparDetalles(detalles) {
+    const agrupados = new Map();
+
+    (detalles || []).forEach(function (detalle) {
+        if (!detalle.productoId) return;
+        const actual = agrupados.get(detalle.productoId) || { ...detalle, cantidad: 0 };
+        actual.cantidad += Number(detalle.cantidad) || 0;
+        agrupados.set(detalle.productoId, actual);
+    });
+
+    return Array.from(agrupados.values());
+}
 
 export function CompraCard({ compra }) {
     const [estaAbierto, setEstaAbierto] = useState(false);
+    const [repitiendo, setRepitiendo] = useState(false);
+    const [resultadoRepetir, setResultadoRepetir] = useState(null);
+    const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
     const fechaFormateada = new Date(compra.fecha).toLocaleString("es-AR", {
         dateStyle: "medium",
         timeStyle: "short"
     });
+
+    async function repetirCompra() {
+        if (repitiendo) return;
+
+        setRepitiendo(true);
+        setResultadoRepetir(null);
+
+        let detalles;
+        try {
+            const ventaActual = await obtenerVenta(compra.id);
+            detalles = agruparDetalles(ventaActual.detalles);
+        } catch (error) {
+            setResultadoRepetir({
+                tipo: "error",
+                texto: error.response?.status === 403
+                    ? "No tenés permisos para repetir esta compra."
+                    : "No se pudo consultar el detalle de la compra. Intentá nuevamente."
+            });
+            setRepitiendo(false);
+            return;
+        }
+
+        if (!detalles.length) {
+            setResultadoRepetir({ tipo: "error", texto: "Esta compra no tiene productos disponibles para repetir." });
+            setRepitiendo(false);
+            return;
+        }
+
+        const resultados = await Promise.all(detalles.map(async function (detalle) {
+            try {
+                const producto = await obtenerProducto(detalle.productoId);
+                const stock = Number(producto.stock);
+                const reservado = Number(producto.stockReservado || 0);
+                const stockDisponible = Math.max(0, stock - reservado);
+
+                if (!Number.isFinite(stock) || !Number.isFinite(reservado) || stockDisponible < detalle.cantidad) {
+                    return {
+                        ok: false,
+                        nombre: producto.nombre || detalle.producto?.nombre || "Producto",
+                        motivo: `stock insuficiente (disponibles: ${stockDisponible})`
+                    };
+                }
+
+                const agregado = agregarProducto(producto, detalle.cantidad);
+                if (!agregado) {
+                    return {
+                        ok: false,
+                        nombre: producto.nombre || detalle.producto?.nombre || "Producto",
+                        motivo: "la cantidad supera el stock disponible considerando tu carrito actual"
+                    };
+                }
+
+                return { ok: true, nombre: producto.nombre || detalle.producto?.nombre || "Producto" };
+            } catch (error) {
+                const noDisponible = error.response?.status === 404;
+                return {
+                    ok: false,
+                    nombre: detalle.producto?.nombre || "Producto",
+                    motivo: noDisponible ? "producto inexistente o inactivo" : "no se pudo verificar su disponibilidad"
+                };
+            }
+        }));
+
+        const agregados = resultados.filter(function (resultado) { return resultado.ok; });
+        const noAgregados = resultados.filter(function (resultado) { return !resultado.ok; });
+        const textoAgregados = agregados.length
+            ? `Agregados al carrito: ${agregados.map(function (resultado) { return resultado.nombre; }).join(", ")}.`
+            : "No se pudo agregar ningún producto al carrito.";
+        const textoNoAgregados = noAgregados.length
+            ? ` No disponibles: ${noAgregados.map(function (resultado) { return `${resultado.nombre} (${resultado.motivo})`; }).join("; ")}.`
+            : "";
+
+        setResultadoRepetir({
+            tipo: agregados.length ? "success" : "error",
+            texto: textoAgregados + textoNoAgregados
+        });
+        setRepitiendo(false);
+    }
 
     return (
         <Card className="p-5 transition-shadow hover:shadow-sm">
@@ -127,6 +225,27 @@ export function CompraCard({ compra }) {
                             No hay detalles de productos registrados para esta compra.
                         </p>
                     )}
+
+                    <div className="mt-5 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            icon={RefreshCw}
+                            onClick={repetirCompra}
+                            loading={repitiendo}
+                            loadingText="Verificando..."
+                        >
+                            Repetir compra
+                        </Button>
+                        {resultadoRepetir && (
+                            <Alert tipo={resultadoRepetir.tipo} texto={resultadoRepetir.texto} className="m-0 flex-1" />
+                        )}
+                        {resultadoRepetir?.tipo === "success" && (
+                            <Link to="/carrito" className="shrink-0">
+                                <Button variant="primary" size="sm" icon={ShoppingCart}>Ir al carrito</Button>
+                            </Link>
+                        )}
+                    </div>
                 </div>
             )}
         </Card>
