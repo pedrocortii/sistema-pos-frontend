@@ -199,7 +199,8 @@ function AdminVentaRapida() {
             return [...actuales, {
                 productoId: producto.id,
                 nombre: producto.nombre,
-                precio: Number(producto.precio),
+                precio: Number(producto.precioFinal ?? producto.precio),
+                precioOriginal: Number(producto.precio),
                 disponible: disponible(producto),
                 cantidad: 1
             }];
@@ -347,7 +348,8 @@ function AdminVentaRapida() {
                                         </p>
                                         <div className="mt-3 flex items-center justify-between text-sm">
                                             <span className="font-mono-ticket text-forest font-bold">
-                                                {formatoMonedaARS.format(Number(producto.precio))}
+                                                {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-2 text-xs text-ink/45 line-through">{formatoMonedaARS.format(Number(producto.precio))}</span>}
+                                                {formatoMonedaARS.format(Number(producto.precioFinal ?? producto.precio))}
                                             </span>
                                             <span className="text-xs">
                                                 {enVenta ? enVenta.cantidad + " en venta" : sinStock ? "Sin stock" : "+ Agregar"}

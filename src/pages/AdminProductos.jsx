@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { actualizarProducto, crearProducto, eliminarProducto, listarProductos } from "../api/productos";
 import ProductoForm from "../components/ProductoForm";
@@ -13,6 +13,7 @@ import { AdminProductoRow } from "../components/AdminProductoRow";
 import { useModal } from "../hooks/useModal";
 import { useAuthStore } from "../store/authStore";
 import { useDataTable } from "../hooks/useDataTable";
+import { categoriasApi, tiposProductoApi } from "../api/clasificacion";
 
 const porPagina = 10;
 
@@ -38,6 +39,16 @@ function AdminProductos() {
 
     const [guardando, setGuardando] = useState(false);
     const [errorGuardar, setErrorGuardar] = useState(null);
+    const [categorias, setCategorias] = useState([]);
+    const [tiposProducto, setTiposProducto] = useState([]);
+    const [errorClasificacion, setErrorClasificacion] = useState(null);
+
+    useEffect(function () {
+        if (!esAdministrador) return;
+        Promise.all([categoriasApi.listar(), tiposProductoApi.listar()])
+            .then(function ([categoriasApiResult, tiposApiResult]) { setCategorias(categoriasApiResult); setTiposProducto(tiposApiResult); })
+            .catch(function (errorPeticion) { setErrorClasificacion(errorPeticion.response?.data?.mensaje || "No se pudieron cargar las categorías y tipos."); });
+    }, [esAdministrador]);
 
     function abrirModal(datos = {}) {
         setErrorGuardar(null);
@@ -155,6 +166,9 @@ function AdminProductos() {
                     alGuardar={guardar}
                     guardando={guardando}
                     error={errorGuardar}
+                    categorias={categorias}
+                    tiposProducto={tiposProducto}
+                    errorClasificacion={errorClasificacion}
                 />
             )}
         </section>

@@ -39,6 +39,9 @@ export const useCarritoStore = create(persist(function (set, get) {
                             return {
                                 ...item,
                                 imagen: producto.imagen || item.imagen,
+                                precio: Number(producto.precioFinal ?? producto.precio),
+                                precioOriginal: Number(producto.precio),
+                                promocion: producto.promocion || null,
                                 stockDisponible: stockDisponible,
                                 cantidad: cantidadSolicitada
                             };
@@ -54,7 +57,9 @@ export const useCarritoStore = create(persist(function (set, get) {
                             productoId: producto.id,
                             nombre: producto.nombre,
                             imagen: producto.imagen || null,
-                            precio: Number(producto.precio),
+                            precio: Number(producto.precioFinal ?? producto.precio),
+                            precioOriginal: Number(producto.precio),
+                            promocion: producto.promocion || null,
                             stockDisponible: stockDisponible,
                             cantidad: cantidadAAgregar
                         }

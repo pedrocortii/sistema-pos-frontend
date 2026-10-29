@@ -148,7 +148,8 @@ function Carrito() {
                                         <div className="min-w-0 flex-1">
                                             <p className="font-display text-2xl leading-tight text-ink">{item.nombre}</p>
                                             <p className="font-mono-ticket text-sm text-ink/60 mt-1">
-                                                ${item.precio.toFixed(2)} x {item.cantidad}  
+                                                {item.precioOriginal > item.precio && <span className="mr-2 line-through">${item.precioOriginal.toFixed(2)}</span>}
+                                                ${item.precio.toFixed(2)} x {item.cantidad}
                                             </p>
                                         </div>
 

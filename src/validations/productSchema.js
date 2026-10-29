@@ -4,9 +4,12 @@ export const productSchema = yup.object().shape({
   nombre: yup.string()
     .trim()
     .required('El nombre es obligatorio'),
-  categoria: yup.string()
+  categoriaId: yup.string()
     .trim()
     .required('La categoría es obligatoria'),
+  tipoProductoId: yup.string()
+    .trim()
+    .required('El tipo de producto es obligatorio'),
   precio: yup.number()
     .typeError('El precio debe ser un número')
     .positive('El precio debe ser mayor a 0')

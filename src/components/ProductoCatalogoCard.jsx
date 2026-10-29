@@ -57,9 +57,10 @@ function ProductoCatalogoCard({ producto }) {
             )}
 
             <div className="flex items-center justify-between mt-5">
-                <span className="font-mono-ticket text-lg text-forest font-bold">
-                    ${Number(producto.precio).toFixed(2)}
-                </span>
+                <div className="font-mono-ticket text-lg font-bold">
+                    {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-2 text-sm text-ink/45 line-through">${Number(producto.precio).toFixed(2)}</span>}
+                    <span className="text-forest">${Number(producto.precioFinal ?? producto.precio).toFixed(2)}</span>
+                </div>
                 {sinStock && (
                     <Badge variant="danger" size="xs">
                         Sin stock

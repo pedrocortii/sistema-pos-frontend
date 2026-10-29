@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { cancelarVenta, cobrarVenta, obtenerVenta } from "../api/ventas";
+import { cancelarVenta, cobrarVenta, marcarVentaListaParaRetirar, marcarVentaRetirada, obtenerVenta, prepararVenta } from "../api/ventas";
 import { CargaAdmin } from "../components/AdminUI";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card, CardTitle } from "../components/ui/Card";
@@ -47,6 +47,16 @@ function AdminVentaDetalle() {
             metodoPago: "Efectivo",
             efectivoRecibido: efectivoCentavos / 100
         });
+    }
+
+    function avanzarEstado() {
+        if (!venta) return;
+        const acciones = {
+            COBRADA: prepararVenta,
+            EN_PREPARACION: marcarVentaListaParaRetirar,
+            LISTA_PARA_RETIRAR: marcarVentaRetirada
+        };
+        if (acciones[venta.estado]) ejecutarAccion(acciones[venta.estado]);
     }
 
     const efectivoCentavos = parsearMontoACentavos(efectivoRecibido);
@@ -163,6 +173,21 @@ function AdminVentaDetalle() {
                                         Cancelar venta
                                     </Button>
                                 </div>
+                            </div>
+                        )}
+
+                        {venta.origen === "AUTOGESTION" && ["COBRADA", "EN_PREPARACION", "LISTA_PARA_RETIRAR"].includes(venta.estado) && (
+                            <div className="mt-6 border-t border-line pt-4">
+                                <p className="mb-3 text-sm text-ink/70">
+                                    {venta.estado === "COBRADA" && "El pago fue confirmado. El cajero puede comenzar a preparar el pedido."}
+                                    {venta.estado === "EN_PREPARACION" && "Cuando el pedido esté preparado, avisá al cliente para que lo retire."}
+                                    {venta.estado === "LISTA_PARA_RETIRAR" && "El cliente fue avisado de que su pedido está listo."}
+                                </p>
+                                <Button onClick={avanzarEstado} disabled={accion} loading={accion} className="w-full">
+                                    {venta.estado === "COBRADA" && "Comenzar preparación"}
+                                    {venta.estado === "EN_PREPARACION" && "Marcar lista para retirar"}
+                                    {venta.estado === "LISTA_PARA_RETIRAR" && "Confirmar retiro"}
+                                </Button>
                             </div>
                         )}
                     </Card>

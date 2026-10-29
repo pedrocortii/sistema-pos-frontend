@@ -60,6 +60,9 @@ function AdminVentas() {
                         { value: "", label: "Todos los estados" },
                         { value: "PENDIENTE", label: "Pendiente" },
                         { value: "COBRADA", label: "Cobrada" },
+                        { value: "EN_PREPARACION", label: "En preparación" },
+                        { value: "LISTA_PARA_RETIRAR", label: "Lista para retirar" },
+                        { value: "RETIRADA", label: "Retirada" },
                         { value: "CANCELADA", label: "Cancelada" }
                     ]}
                 />
