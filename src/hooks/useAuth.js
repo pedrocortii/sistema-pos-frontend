@@ -16,7 +16,7 @@ export function useAuth() {
             iniciarSesion(newToken, usuarioFinal);
 
             const destinos = {
-                Administrador: "/admin/productos",
+                Administrador: "/admin/dashboard",
                 Cajero: "/admin/venta-rapida",
                 Cliente: "/catalogo"
             };
