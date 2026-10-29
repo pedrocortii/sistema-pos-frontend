@@ -16,6 +16,7 @@ import AdminStock from "./pages/AdminStock";
 import AdminVentas from "./pages/AdminVentas";
 import AdminVentaDetalle from "./pages/AdminVentaDetalle";
 import AdminVentaRapida from "./pages/AdminVentaRapida";
+import AdminPromociones from "./pages/AdminPromociones";
 import { useAuthStore } from "./store/authStore";
 
 function RedireccionRaiz() {
@@ -72,6 +73,7 @@ function App() {
                             path="productos"
                             element={<AdminProductos />}
                         />
+                        <Route path="promociones" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminPromociones /></RutaProtegida>} />
                         <Route
                             path="stock"
                             element={<AdminStock />}
