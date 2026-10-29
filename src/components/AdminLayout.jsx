@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, X } from "lucide-react";
+import { BarChart3, Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 const enlaces = [
+    { to: "/admin/dashboard", texto: "Dashboard", icono: BarChart3, soloAdministrador: true },
     { to: "/admin/venta-rapida", texto: "Venta rápida", icono: ShoppingCart },
     { to: "/admin/productos", texto: "Productos", icono: Package },
     { to: "/admin/stock", texto: "Stock", icono: Boxes },
@@ -45,7 +46,7 @@ function AdminLayout() {
                         Administración
                     </p>
                     <ul className="space-y-1">
-                        {enlaces.map(function (enlace) {
+                        {enlaces.filter(function (enlace) { return !enlace.soloAdministrador || usuario?.rol === "Administrador"; }).map(function (enlace) {
                             const Icono = enlace.icono;
                             return (
                                 <li key={enlace.to}>

@@ -19,9 +19,12 @@ import AdminVentaRapida from "./pages/AdminVentaRapida";
 import { useAuthStore } from "./store/authStore";
 
 function RedireccionRaiz() {
-    // Si ya esta autenticado, va al dashboard. Si no, al login.
     const token = useAuthStore(function (estado) { return estado.token; });
-    return token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+    const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    if (!token) return <Navigate to="/login" replace />;
+    if (usuario?.rol === "Administrador") return <Navigate to="/admin/dashboard" replace />;
+    if (usuario?.rol === "Cajero") return <Navigate to="/admin/venta-rapida" replace />;
+    return <Navigate to="/catalogo" replace />;
 }
 
 function App() {
@@ -44,7 +47,7 @@ function App() {
                 <Route
                     path="/dashboard"
                     element={
-                        <RutaProtegida>
+                        <RutaProtegida rolesPermitidos={["Administrador"]}>
                             <Dashboard />
                         </RutaProtegida>
                     }
@@ -63,6 +66,7 @@ function App() {
                 <Route element={<RutaProtegida rolesPermitidos={["Administrador", "Cajero"]} />}>
                     <Route path="/admin" element={<AdminLayout />}>
                         <Route index element={<Navigate to="productos" replace />} />
+                        <Route path="dashboard" element={<RutaProtegida rolesPermitidos={["Administrador"]}><Dashboard /></RutaProtegida>} />
                         <Route path="venta-rapida" element={<AdminVentaRapida />} />
                         <Route
                             path="productos"
