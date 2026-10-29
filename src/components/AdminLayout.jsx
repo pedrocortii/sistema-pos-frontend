@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { BarChart3, Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, Tag, X } from "lucide-react";
+import { BarChart3, Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, Tag, Tags, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -8,6 +8,7 @@ const enlaces = [
     { to: "/admin/venta-rapida", texto: "Venta rápida", icono: ShoppingCart },
     { to: "/admin/productos", texto: "Productos", icono: Package },
     { to: "/admin/promociones", texto: "Promociones", icono: Tag, soloAdministrador: true },
+    { to: "/admin/clasificacion", texto: "Categorías y tipos", icono: Tags, soloAdministrador: true },
     { to: "/admin/stock", texto: "Stock", icono: Boxes },
     { to: "/admin/ventas", texto: "Ventas", icono: ReceiptText }
 ];

@@ -59,15 +59,18 @@ async function listarVentasDashboard(parametros) {
 }
 
 export async function obtenerResumenDashboard(filtros = {}) {
-    const [ventas, productos, stock] = await Promise.all([
+    const [ventasRegistradas, productos, stock] = await Promise.all([
         listarTodosLosResultados(listarVentasDashboard, {
-            estado: "COBRADA",
             ...(filtros.fechaDesde && { fechaDesde: filtros.fechaDesde }),
             ...(filtros.fechaHasta && { fechaHasta: filtros.fechaHasta })
         }, obtenerVentas, obtenerTotalVentas, function (pagina) { return { page: pagina, limit: limiteConsulta }; }),
         listarTodosLosResultados(listarProductos, {}, obtenerProductos, obtenerTotalProductos, function (pagina) { return { page: pagina, limit: limiteConsulta }; }),
         listarTodosLosResultados(listarStock, {}, obtenerProductos, obtenerTotalProductos, function () { return {}; })
     ]);
+
+    const ventas = ventasRegistradas.filter(function (venta) {
+        return ["COBRADA", "EN_PREPARACION", "LISTA_PARA_RETIRAR", "RETIRADA"].includes(venta.estado);
+    });
 
     const cantidadesPorProducto = new Map();
     let totalVendido = 0;

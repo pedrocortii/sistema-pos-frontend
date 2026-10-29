@@ -93,7 +93,8 @@ function ProductoDetalle() {
                         )}
 
                         <p className="font-mono-ticket text-3xl text-forest font-bold mt-6">
-                            ${Number(producto.precio).toFixed(2)}
+                            {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-3 text-xl text-ink/45 line-through">${Number(producto.precio).toFixed(2)}</span>}
+                            ${Number(producto.precioFinal ?? producto.precio).toFixed(2)}
                         </p>
 
                         {stockDisponible === 0 ? (

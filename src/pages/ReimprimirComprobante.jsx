@@ -59,7 +59,7 @@ function ReimprimirComprobante() {
             try {
                 const v = await cargarComprobante(codigo);
                 setVentaLocal(v);
-                if (v.estado === "PENDIENTE") {
+                if (!["CANCELADA", "RETIRADA"].includes(v.estado)) {
                     setUltimoComprobante({
                         codigo: v.codigoComprobante,
                         estado: v.estado,
@@ -76,12 +76,12 @@ function ReimprimirComprobante() {
     }, [codigo, cargarComprobante, setUltimoComprobante, limpiarUltimoComprobante]);
 
     useEffect(function () {
-        if (venta?.estado !== "PENDIENTE") return undefined;
+        if (!venta || ["CANCELADA", "RETIRADA"].includes(venta.estado)) return undefined;
 
         const interval = window.setInterval(function () {
             obtenerComprobante(codigo).then(function (v) {
                 setVentaLocal(v);
-                if (v.estado === "PENDIENTE") {
+                if (!["CANCELADA", "RETIRADA"].includes(v.estado)) {
                     setUltimoComprobante({
                         codigo: v.codigoComprobante,
                         estado: v.estado,
@@ -96,7 +96,7 @@ function ReimprimirComprobante() {
         }, 5000);
 
         return function () { window.clearInterval(interval); };
-    }, [codigo, venta?.estado, setUltimoComprobante, limpiarUltimoComprobante]);
+    }, [codigo, venta, setUltimoComprobante, limpiarUltimoComprobante]);
 
     useEffect(function () {
         let activo = true;
@@ -269,6 +269,24 @@ function ReimprimirComprobante() {
                                 La orden expira en 15 minutos.
                             </p>
                         </div>
+                    )}
+
+                    {venta.estado === "LISTA_PARA_RETIRAR" && (
+                        <Alert
+                            variant="success"
+                            titulo="Tu pedido está listo para retirar"
+                            texto="Ya podés pasar a buscarlo presentando este comprobante."
+                            className="mt-6 text-center"
+                        />
+                    )}
+
+                    {venta.estado === "EN_PREPARACION" && (
+                        <Alert
+                            variant="info"
+                            titulo="Estamos preparando tu pedido"
+                            texto="Te avisaremos cuando esté listo para retirar."
+                            className="mt-6 text-center"
+                        />
                     )}
 
                     {venta.estado === "COBRADA" && (

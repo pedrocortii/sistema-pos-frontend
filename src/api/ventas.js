@@ -52,3 +52,18 @@ export async function cancelarVenta(id) {
     const respuesta = await http.patch("/ventas/" + id + "/cancelar", {});
     return respuesta.data.venta;
 }
+
+export async function prepararVenta(id) {
+    const respuesta = await http.patch("/ventas/" + id + "/preparar", {});
+    return respuesta.data.venta;
+}
+
+export async function marcarVentaListaParaRetirar(id) {
+    const respuesta = await http.patch("/ventas/" + id + "/lista-para-retirar", {});
+    return respuesta.data.venta;
+}
+
+export async function marcarVentaRetirada(id) {
+    const respuesta = await http.patch("/ventas/" + id + "/retirar", {});
+    return respuesta.data.venta;
+}

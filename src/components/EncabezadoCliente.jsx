@@ -20,7 +20,7 @@ function EncabezadoCliente() {
     return (
         <header className="border-b border-forest-dark bg-forest text-paper">
             {ultimoComprobante && ultimoComprobante.estado === "PENDIENTE" && (
-                <div role="status" className="bg-amber/25 px-4 py-2.5 text-sm text-ink font-medium">
+                <div role="status" className="bg-amber/50 px-4 py-2.5 text-sm text-ink font-medium">
                     <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
                             <AlertCircle size={15} aria-hidden="true" />
@@ -28,6 +28,19 @@ function EncabezadoCliente() {
                         </div>
                         <Link to={"/comprobante/" + ultimoComprobante.codigo} className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity sm:ml-4 sm:whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ink">
                             Pagar o ver comprobante →
+                        </Link>
+                    </div>
+                </div>
+            )}
+            {ultimoComprobante && ultimoComprobante.estado === "LISTA_PARA_RETIRAR" && (
+                <div role="status" className="bg-amber px-4 py-2.5 text-sm text-ink font-medium">
+                    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                            <AlertCircle size={15} aria-hidden="true" />
+                            <span>¡Tu pedido está listo para retirar! ({ultimoComprobante.codigo})</span>
+                        </div>
+                        <Link to={'/comprobante/' + ultimoComprobante.codigo} className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity sm:ml-4 sm:whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ink">
+                            Ver comprobante →
                         </Link>
                     </div>
                 </div>
