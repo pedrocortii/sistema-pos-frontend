@@ -12,6 +12,7 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Alert } from "../components/ui/Alert";
 import { usePeticion } from "../hooks/usePeticion";
+import PrecioProducto from "../components/PrecioProducto";
 
 function obtenerErrorProducto() {
     return "No se pudo cargar el producto.";
@@ -92,10 +93,7 @@ function ProductoDetalle() {
                             </p>
                         )}
 
-                        <p className="font-mono-ticket text-3xl text-forest font-bold mt-6">
-                            {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-3 text-xl text-ink/45 line-through">${Number(producto.precio).toFixed(2)}</span>}
-                            ${Number(producto.precioFinal ?? producto.precio).toFixed(2)}
-                        </p>
+                        <PrecioProducto producto={producto} className="mt-6 text-3xl" />
 
                         {stockDisponible === 0 ? (
                             <Alert
@@ -124,7 +122,7 @@ function ProductoDetalle() {
 
                                 <Button
                                     onClick={manejarAgregar}
-                                    disabled={cantidad > stockDisponible}
+                                    disabled={cantidad > stockDisponible || Boolean(producto.promocionNoAplicable)}
                                     icon={ShoppingCart}
                                     size="lg"
                                     className="w-full mt-6"

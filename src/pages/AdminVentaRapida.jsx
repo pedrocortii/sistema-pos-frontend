@@ -338,7 +338,7 @@ function AdminVentaRapida() {
                                     <button
                                         key={producto.id}
                                         type="button"
-                                        disabled={sinStock || Boolean(ventaPendienteCobro)}
+                                        disabled={sinStock || Boolean(producto.promocionNoAplicable) || Boolean(ventaPendienteCobro)}
                                         onClick={function () { agregarProducto(producto); }}
                                         className="cursor-pointer p-4 text-left transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-45"
                                     >
@@ -352,9 +352,16 @@ function AdminVentaRapida() {
                                                 {formatoMonedaARS.format(Number(producto.precioFinal ?? producto.precio))}
                                             </span>
                                             <span className="text-xs">
-                                                {enVenta ? enVenta.cantidad + " en venta" : sinStock ? "Sin stock" : "+ Agregar"}
+                                                {producto.promocionNoAplicable
+                                                    ? "Promoción no aplicable"
+                                                    : enVenta ? enVenta.cantidad + " en venta" : sinStock ? "Sin stock" : "+ Agregar"}
                                             </span>
                                         </div>
+                                        {producto.promocionNoAplicable && (
+                                            <p role="alert" className="mt-2 text-xs text-red-700">
+                                                {producto.promocionNoAplicable.mensaje}
+                                            </p>
+                                        )}
                                     </button>
                                 );
                             })}
