@@ -6,6 +6,11 @@ export async function listarPromocionesVigentes() {
     return respuesta.data;
 }
 
+export async function obtenerPrecioMinimoPromocional() {
+    const respuesta = await publicHttp.get("/promociones/precio-minimo");
+    return respuesta.data.precioMinimoPromocional;
+}
+
 export async function listarPromociones() {
     const respuesta = await http.get("/promociones");
     return respuesta.data.promociones;

@@ -39,6 +39,7 @@ function Carrito() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const actualizarPerfilCliente = useAuthStore(function (estado) { return estado.actualizarPerfilCliente; });
     const dniCliente = usuario?.dni ?? usuario?.documento ?? usuario?.DNI ?? usuario?.clienteDni ?? "";
+    const promocionesNoAplicables = items.filter(function (item) { return item.promocionNoAplicable; });
 
     const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
@@ -151,6 +152,16 @@ function Carrito() {
                                                 {item.precioOriginal > item.precio && <span className="mr-2 line-through">${item.precioOriginal.toFixed(2)}</span>}
                                                 ${item.precio.toFixed(2)} x {item.cantidad}
                                             </p>
+                                            {item.promocion && item.promocionNoAplicable === null && (
+                                                <p className="font-mono-ticket text-xs text-forest mt-1">
+                                                    {item.promocion.titulo}: ahorrás ${(item.precioOriginal - item.precio).toFixed(2)} por unidad
+                                                </p>
+                                            )}
+                                            {item.promocionNoAplicable && (
+                                                <p role="alert" className="mt-1 text-xs text-red-700">
+                                                    {item.promocionNoAplicable.mensaje}
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="flex items-center gap-4 ml-auto">
@@ -246,6 +257,13 @@ function Carrito() {
                                 </div>
 
                                 {error && <Alert tipo="error" texto={error} className="mt-5" />}
+                                {promocionesNoAplicables.length > 0 && (
+                                    <Alert
+                                        tipo="error"
+                                        texto="La acción no se puede realizar: corregí las promociones indicadas antes de confirmar la compra."
+                                        className="mt-5"
+                                    />
+                                )}
 
                                 <Button
                                     type="submit"
@@ -253,6 +271,7 @@ function Carrito() {
                                     loading={cargando}
                                     loadingText="Procesando..."
                                     icon={ShoppingBag}
+                                    disabled={promocionesNoAplicables.length > 0}
                                     className="mt-6"
                                 >
                                     Confirmar compra

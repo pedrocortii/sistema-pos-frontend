@@ -42,6 +42,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                                 precio: Number(producto.precioFinal ?? producto.precio),
                                 precioOriginal: Number(producto.precio),
                                 promocion: producto.promocion || null,
+                                promocionNoAplicable: producto.promocionNoAplicable || null,
                                 stockDisponible: stockDisponible,
                                 cantidad: cantidadSolicitada
                             };
@@ -60,6 +61,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                             precio: Number(producto.precioFinal ?? producto.precio),
                             precioOriginal: Number(producto.precio),
                             promocion: producto.promocion || null,
+                            promocionNoAplicable: producto.promocionNoAplicable || null,
                             stockDisponible: stockDisponible,
                             cantidad: cantidadAAgregar
                         }
@@ -99,9 +101,10 @@ export const useCarritoStore = create(persist(function (set, get) {
         },
 
         obtenerTotal: function () {
-            return get().items.reduce(function (acumulado, item) {
-                return acumulado + item.precio * item.cantidad;
+            const totalCentavos = get().items.reduce(function (acumulado, item) {
+                return acumulado + Math.round(item.precio * 100) * item.cantidad;
             }, 0);
+            return totalCentavos / 100;
         },
 
         obtenerCantidadTotal: function () {
