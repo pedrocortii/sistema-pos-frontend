@@ -10,11 +10,13 @@ export function useAuth() {
         try {
             const respuesta = await http.post("/usuarios/login", { email, contrasena });
             const { token: newToken, usuario: nuevoUsuario } = respuesta.data;
+            const perfilGuardado = JSON.parse(localStorage.getItem("clientePerfil") || "null");
+            const usuarioFinal = { ...(perfilGuardado || {}), ...(nuevoUsuario || {}) };
 
-            iniciarSesion(newToken, nuevoUsuario);
+            iniciarSesion(newToken, usuarioFinal);
 
             const destinos = {
-                Administrador: "/admin/productos",
+                Administrador: "/admin/dashboard",
                 Cajero: "/admin/venta-rapida",
                 Cliente: "/catalogo"
             };

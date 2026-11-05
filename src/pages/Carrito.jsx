@@ -1,12 +1,20 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { ShoppingBag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { useEffect } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { checkoutSchema } from "../validations/checkoutSchema";
 import { crearVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
+import { useAuthStore } from "../store/authStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
-import MensajeError from "../components/MensajeError";
+import ImagenProducto from "../components/ImagenProducto";
+import SelectorCantidad from "../components/SelectorCantidad";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Input } from "../components/ui/Input";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
+import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
 
 function obtenerErrorCheckout(error) {
@@ -28,6 +36,9 @@ function Carrito() {
     const vaciarCarrito = useCarritoStore(function (estado) { return estado.vaciarCarrito; });
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
+    const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const actualizarPerfilCliente = useAuthStore(function (estado) { return estado.actualizarPerfilCliente; });
+    const dniCliente = usuario?.dni ?? usuario?.documento ?? usuario?.DNI ?? usuario?.clienteDni ?? "";
 
     const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
@@ -36,17 +47,28 @@ function Carrito() {
     const {
         register,
         handleSubmit,
+        reset,
         formState: { errors },
     } = useForm({
         resolver: yupResolver(checkoutSchema),
         defaultValues: {
-            nombre: "",
-            apellido: "",
-            dni: "",
-            email: "",
-            confirmarEmail: ""
+            nombre: usuario?.nombre || "",
+            apellido: usuario?.apellido || "",
+            dni: dniCliente,
+            email: usuario?.email || "",
+            confirmarEmail: usuario?.email || ""
         }
     });
+
+    useEffect(function () {
+        reset({
+            nombre: usuario?.nombre || "",
+            apellido: usuario?.apellido || "",
+            dni: dniCliente,
+            email: usuario?.email || "",
+            confirmarEmail: usuario?.email || ""
+        });
+    }, [usuario, dniCliente, reset]);
 
     async function manejarConfirmarCompra(datosFactura) {
         const itemsParaEnviar = items.map(function (item) {
@@ -61,10 +83,20 @@ function Carrito() {
                 dni: datosFactura.dni.trim(),
                 email: datosFactura.email.trim(),
                 confirmarEmail: datosFactura.confirmarEmail.trim()
-            }
+            },
+            metodoPago: "MercadoPago"
         };
 
         try {
+            if (usuario && usuario.rol === "Cliente") {
+                actualizarPerfilCliente({
+                    nombre: datosFactura.nombre.trim(),
+                    apellido: datosFactura.apellido.trim(),
+                    dni: datosFactura.dni.trim(),
+                    email: datosFactura.email.trim()
+                });
+            }
+
             const venta = await confirmarCompra(payload);
             setUltimoComprobante({
                 codigo: venta.codigoComprobante,
@@ -83,22 +115,23 @@ function Carrito() {
             <EncabezadoCliente />
 
             <main className="max-w-3xl mx-auto px-6 py-10">
-                <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
-                    Tu compra
-                </p>
-                <h1 className="font-display text-4xl text-ink mt-1 mb-8">
-                    Carrito
-                </h1>
+                <PageHeader
+                    etiqueta="Tu compra"
+                    titulo="Carrito"
+                    className="mb-8"
+                />
 
                 {items.length === 0 && (
-                    <div className="text-center py-16">
-                        <p className="font-mono-ticket text-sm text-ink/60 mb-6">
-                            Todavia no agregaste productos.
-                        </p>
-                        <Link to="/catalogo" className="text-forest underline font-mono-ticket text-sm">
-                            Ir al catalogo
-                        </Link>
-                    </div>
+                    <EmptyState
+                        icono={ShoppingBag}
+                        titulo="Tu carrito está vacío"
+                        descripcion="Todavía no agregaste productos a tu compra."
+                        accion={
+                            <Link to="/catalogo">
+                                <Button>Ir al catálogo</Button>
+                            </Link>
+                        }
+                    />
                 )}
 
                 {items.length > 0 && (
@@ -106,139 +139,124 @@ function Carrito() {
                         <div className="bg-ticket border border-line divide-y divide-line">
                             {items.map(function (item) {
                                 return (
-                                    <div key={item.productoId} className="flex items-center justify-between p-5">
-                                        <div>
-                                            <p className="font-display text-lg text-ink">{item.nombre}</p>
-                                            <p className="font-mono-ticket text-xs text-ink/50">
-                                                ${item.precio.toFixed(2)} c/u
+                                    <div key={item.productoId} className="flex items-center justify-between gap-4 p-5">
+                                        <ImagenProducto
+                                            imagen={item.imagen}
+                                            alt={"Imagen de " + item.nombre}
+                                            className="h-14 w-14 shrink-0 rounded border border-line object-cover"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-display text-2xl leading-tight text-ink">{item.nombre}</p>
+                                            <p className="font-mono-ticket text-sm text-ink/60 mt-1">
+                                                {item.precioOriginal > item.precio && <span className="mr-2 line-through">${item.precioOriginal.toFixed(2)}</span>}
+                                                ${item.precio.toFixed(2)} x {item.cantidad}
                                             </p>
                                         </div>
 
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={function () { cambiarCantidad(item.productoId, item.cantidad - 1); }}
-                                                    className="w-7 h-7 border border-line text-ink flex items-center justify-center"
-                                                >
-                                                    <Minus size={14} />
-                                                </button>
-                                                <span className="font-mono-ticket text-sm w-6 text-center">
-                                                    {item.cantidad}
-                                                </span>
-                                                <button
-                                                    onClick={function () { cambiarCantidad(item.productoId, item.cantidad + 1); }}
-                                                    className="w-7 h-7 border border-line text-ink flex items-center justify-center"
-                                                >
-                                                    <Plus size={14} />
-                                                </button>
+                                        <div className="flex items-center gap-4 ml-auto">
+                                            <div className="border border-line bg-paper px-2 py-1">
+                                                <SelectorCantidad
+                                                    cantidad={item.cantidad}
+                                                    minimo={1}
+                                                    size="sm"
+                                                    onCambiar={function (nueva) {
+                                                        cambiarCantidad(item.productoId, nueva);
+                                                    }}
+                                                />
                                             </div>
-                                            <span className="font-mono-ticket text-sm text-ink w-20 text-right">
+                                            <span className="font-mono-ticket text-2xl text-ink min-w-[110px] text-right">
                                                 ${(item.precio * item.cantidad).toFixed(2)}
                                             </span>
-                                            <button
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
                                                 onClick={function () { quitarProducto(item.productoId); }}
-                                                className="text-red-600 hover:text-red-700"
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                                 title="Quitar del carrito"
+                                                aria-label={"Quitar " + item.nombre}
                                             >
                                                 <Trash2 size={18} />
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
 
-                        <div className="flex items-center justify-between mt-6">
-                            <span className="font-mono-ticket text-sm uppercase tracking-wide text-ink/60">
+                        <div className="flex items-center justify-between mt-8 border-t border-line pt-5">
+                            <span className="font-mono-ticket text-sm text-ink/60">
                                 Total
                             </span>
-                            <span className="font-mono-ticket text-2xl text-forest">
+                            <span className="font-mono-ticket text-4xl text-forest font-bold">
                                 ${obtenerTotal().toFixed(2)}
                             </span>
                         </div>
 
                         <section className="mt-10">
-                            <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
+                            <p className="font-mono-ticket text-xs text-forest">
                                 Paso final
                             </p>
-                            <h2 className="font-display text-2xl text-ink mt-1 mb-4">
+                            <h2 className="font-display text-2xl text-ink mt-1 mb-2">
                                 Datos para la factura
                             </h2>
                             <p className="font-mono-ticket text-xs text-ink/60 mb-5">
-                                No necesitas crear cuenta. Solo completa estos datos para emitir el comprobante.
+                                {usuario && usuario.rol === "Cliente"
+                                    ? "Podés editar tus datos para esta compra y quedarán guardados en tu perfil."
+                                    : "No necesitas crear cuenta. Solo completa estos datos para emitir el comprobante."}
                             </p>
 
                             <form onSubmit={handleSubmit(manejarConfirmarCompra)}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col">
-                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                            Nombre
-                                        </label>
-                                        <input
-                                            type="text"
-                                            {...register("nombre")}
-                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                        />
-                                        {errors.nombre && <p className="mt-1 text-xs text-red-600">{errors.nombre.message}</p>}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                            Apellido
-                                        </label>
-                                        <input
-                                            type="text"
-                                            {...register("apellido")}
-                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                        />
-                                        {errors.apellido && <p className="mt-1 text-xs text-red-600">{errors.apellido.message}</p>}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                            DNI
-                                        </label>
-                                        <input
-                                            type="text"
-                                            {...register("dni")}
-                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                        />
-                                        {errors.dni && <p className="mt-1 text-xs text-red-600">{errors.dni.message}</p>}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                            Email
-                                        </label>
-                                        <input
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Input
+                                        label="Nombre"
+                                        variant="line"
+                                        {...register("nombre")}
+                                        error={errors.nombre}
+                                    />
+                                    <Input
+                                        label="Apellido"
+                                        variant="line"
+                                        {...register("apellido")}
+                                        error={errors.apellido}
+                                    />
+                                    <Input
+                                        label="DNI"
+                                        variant="line"
+                                        {...register("dni")}
+                                        error={errors.dni}
+                                    />
+                                    <Input
+                                        label="Email"
+                                        type="email"
+                                        variant="line"
+                                        placeholder="tucorreo@ejemplo.com"
+                                        {...register("email")}
+                                        error={errors.email}
+                                    />
+                                    <div className="sm:col-span-2">
+                                        <Input
+                                            label="Confirmar email"
                                             type="email"
-                                            {...register("email")}
-                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
-                                            placeholder="tucorreo@ejemplo.com"
-                                        />
-                                        {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                                            Confirmar email
-                                        </label>
-                                        <input
-                                            type="email"
-                                            {...register("confirmarEmail")}
-                                            className="w-full mt-1 pb-2 bg-transparent border-b-2 border-line focus:border-forest outline-none text-ink transition-colors"
+                                            variant="line"
                                             placeholder="Repite tu correo"
+                                            {...register("confirmarEmail")}
+                                            error={errors.confirmarEmail}
                                         />
-                                        {errors.confirmarEmail && <p className="mt-1 text-xs text-red-600">{errors.confirmarEmail.message}</p>}
                                     </div>
                                 </div>
 
-                                {error && <MensajeError texto={error} className="mt-4" />}
+                                {error && <Alert tipo="error" texto={error} className="mt-5" />}
 
-                                <button
+                                <Button
                                     type="submit"
-                                    disabled={cargando}
-                                    className="w-full mt-6 bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-4 transition-colors flex items-center justify-center gap-2"
+                                    size="xl"
+                                    loading={cargando}
+                                    loadingText="Procesando..."
+                                    icon={ShoppingBag}
+                                    className="mt-6"
                                 >
-                                    <ShoppingBag size={18} />
-                                    {cargando ? "Procesando..." : "Confirmar compra"}
-                                </button>
+                                    Confirmar compra
+                                </Button>
                             </form>
                         </section>
                     </>

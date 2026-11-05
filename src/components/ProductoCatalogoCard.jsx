@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Check, ShoppingCart } from "lucide-react";
 import { useCarritoStore } from "../store/carritoStore";
 import SelectorCantidad from "./SelectorCantidad";
+import ImagenProducto from "./ImagenProducto";
+import { Card } from "./ui/Card";
+import { Badge } from "./ui/Badge";
+import { Button } from "./ui/Button";
 
 function ProductoCatalogoCard({ producto }) {
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
@@ -32,8 +36,15 @@ function ProductoCatalogoCard({ producto }) {
     }
 
     return (
-        <article className="bg-ticket border border-line p-6 flex flex-col hover:border-forest transition-colors">
-            <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">
+        <Card hover className="flex flex-col">
+            <div className="-mx-6 -mt-6 mb-4 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-t bg-paper p-4">
+                <ImagenProducto
+                    imagen={producto.imagen}
+                    alt={"Imagen de " + producto.nombre}
+                    className="h-full w-full object-contain"
+                />
+            </div>
+            <p className="font-mono-ticket text-xs text-ink/50">
                 {producto.categoria}
             </p>
             <h2 className="font-display text-xl text-ink mt-1">
@@ -46,13 +57,14 @@ function ProductoCatalogoCard({ producto }) {
             )}
 
             <div className="flex items-center justify-between mt-5">
-                <span className="font-mono-ticket text-lg text-forest">
-                    ${Number(producto.precio).toFixed(2)}
-                </span>
+                <div className="font-mono-ticket text-lg font-bold">
+                    {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-2 text-sm text-ink/45 line-through">${Number(producto.precio).toFixed(2)}</span>}
+                    <span className="text-forest">${Number(producto.precioFinal ?? producto.precio).toFixed(2)}</span>
+                </div>
                 {sinStock && (
-                    <span className="font-mono-ticket text-xs text-red-600">
+                    <Badge variant="danger" size="xs">
                         Sin stock
-                    </span>
+                    </Badge>
                 )}
             </div>
             {!sinStock && (
@@ -62,20 +74,31 @@ function ProductoCatalogoCard({ producto }) {
             )}
 
             <div className="flex items-center gap-3 mt-4">
-                <SelectorCantidad cantidad={cantidad} onCambiar={function (valor) { setAvisoStock(""); setCantidad(valor); }} maximo={cantidadMaxima} />
-                <button
+                <SelectorCantidad
+                    cantidad={cantidad}
+                    onCambiar={function (valor) {
+                        setAvisoStock("");
+                        setCantidad(valor);
+                    }}
+                    maximo={cantidadMaxima}
+                />
+                <Button
                     type="button"
                     onClick={manejarAgregar}
                     disabled={sinStock}
+                    size="icon-lg"
                     aria-label={agregado ? "Producto agregado al carrito" : "Agregar al carrito"}
                     title={agregado ? "Producto agregado" : "Agregar al carrito"}
-                    className="w-11 h-9 bg-forest hover:bg-forest-dark disabled:bg-ink/30 disabled:cursor-not-allowed text-paper transition-colors flex items-center justify-center"
                 >
                     {agregado ? <Check size={16} /> : <ShoppingCart size={16} />}
-                </button>
+                </Button>
             </div>
-            {avisoStock && <p className="mt-3 font-mono-ticket text-xs text-red-600" role="alert">{avisoStock}</p>}
-        </article>
+            {avisoStock && (
+                <p className="mt-3 font-mono-ticket text-xs text-red-600" role="alert">
+                    {avisoStock}
+                </p>
+            )}
+        </Card>
     );
 }
 

@@ -1,28 +1,59 @@
 import { Minus, Plus } from "lucide-react";
 
-function SelectorCantidad({ cantidad, onCambiar, maximo }) {
+export function SelectorCantidad({
+    cantidad,
+    onCambiar,
+    minimo = 1,
+    maximo,
+    disabled = false,
+    size = "md",
+    className = ""
+}) {
+    const esSm = size === "sm";
+    const botonClase = esSm
+        ? "w-8 h-8 border border-line text-ink flex items-center justify-center transition-colors hover:bg-forest/5 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+        : "w-9 h-9 border border-line text-ink flex items-center justify-center transition-colors hover:bg-forest/5 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer";
+
+    const textoClase = esSm
+        ? "font-mono-ticket text-xl w-7 text-center text-ink leading-none select-none"
+        : "font-mono-ticket text-lg w-6 text-center text-ink leading-none select-none";
+
+    const sePuedeDisminuir = !disabled && cantidad > minimo;
+    const sePuedeAumentar = !disabled && (maximo === undefined || cantidad < maximo);
+
+    function decrementar() {
+        if (!sePuedeDisminuir) return;
+        onCambiar(Math.max(minimo, cantidad - 1));
+    }
+
+    function incrementar() {
+        if (!sePuedeAumentar) return;
+        const nuevo = cantidad + 1;
+        onCambiar(maximo !== undefined ? Math.min(maximo, nuevo) : nuevo);
+    }
+
     return (
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center gap-3 ${className}`}>
             <button
                 type="button"
-                onClick={function () { onCambiar(Math.max(1, cantidad - 1)); }}
-                disabled={cantidad <= 1}
+                onClick={decrementar}
+                disabled={!sePuedeDisminuir}
                 aria-label="Disminuir cantidad"
-                className="w-9 h-9 border border-line text-ink flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                className={botonClase}
             >
-                <Minus size={16} />
+                <Minus size={esSm ? 14 : 16} />
             </button>
-            <span className="font-mono-ticket text-lg w-6 text-center" aria-label={`Cantidad: ${cantidad}`}>
+            <span className={textoClase} aria-label={`Cantidad: ${cantidad}`}>
                 {cantidad}
             </span>
             <button
                 type="button"
-                onClick={function () { onCambiar(Math.min(maximo, cantidad + 1)); }}
-                disabled={cantidad >= maximo}
+                onClick={incrementar}
+                disabled={!sePuedeAumentar}
                 aria-label="Aumentar cantidad"
-                className="w-9 h-9 border border-line text-ink flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                className={botonClase}
             >
-                <Plus size={16} />
+                <Plus size={esSm ? 14 : 16} />
             </button>
         </div>
     );

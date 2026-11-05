@@ -1,13 +1,19 @@
-import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Search } from "lucide-react";
 import { actualizarProducto, crearProducto, eliminarProducto, listarProductos } from "../api/productos";
 import ProductoForm from "../components/ProductoForm";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { TableBody, TableEmpty, TableHead, TableHeader } from "../components/ui/Table";
+import { Pagination } from "../components/ui/Pagination";
+import { DataTable } from "../components/ui/DataTable";
+import { FilterBar } from "../components/ui/FilterBar";
+import { AdminProductoRow } from "../components/AdminProductoRow";
 import { useModal } from "../hooks/useModal";
-import { useFilter } from "../hooks/useFilter";
-import { usePagination } from "../hooks/usePagination";
-import MensajeCarga from "../components/MensajeCarga";
-import MensajeError from "../components/MensajeError";
 import { useAuthStore } from "../store/authStore";
+import { useDataTable } from "../hooks/useDataTable";
+import { categoriasApi, tiposProductoApi } from "../api/clasificacion";
 
 const porPagina = 10;
 
@@ -15,27 +21,61 @@ function AdminProductos() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const esAdministrador = usuario?.rol === "Administrador";
     const { open, close, modalData: modal } = useModal();
-    const { data: productosResponse = {}, isLoading: cargando, error, page: pagina, setPage: setPagina, fetchPage: cargar } = usePagination(listarProductos);
 
-    // Extraemos la lista de productos del objeto de respuesta del servidor
+    const {
+        data: productosResponse,
+        isLoading: cargando,
+        error,
+        page: pagina,
+        setPage,
+        setSearch,
+        search: busqueda,
+        refresh
+    } = useDataTable(listarProductos, {
+        initialParams: { limit: porPagina }
+    });
+
     const productos = productosResponse?.data || [];
-    const { query: busqueda, setQuery: setBusqueda, filteredData: filtrados } = useFilter(productos, (p) => p.nombre);
 
     const [guardando, setGuardando] = useState(false);
+    const [errorGuardar, setErrorGuardar] = useState(null);
+    const [categorias, setCategorias] = useState([]);
+    const [tiposProducto, setTiposProducto] = useState([]);
+    const [errorClasificacion, setErrorClasificacion] = useState(null);
 
-    
-    const visibles = filtrados;
-    const totalPaginas = Math.ceil((productosResponse?.total || 0) / porPagina);
+    useEffect(function () {
+        if (!esAdministrador) return;
+        Promise.all([categoriasApi.listar(), tiposProductoApi.listar()])
+            .then(function ([categoriasApiResult, tiposApiResult]) { setCategorias(categoriasApiResult); setTiposProducto(tiposApiResult); })
+            .catch(function (errorPeticion) { setErrorClasificacion(errorPeticion.response?.data?.mensaje || "No se pudieron cargar las categorías y tipos."); });
+    }, [esAdministrador]);
 
-    async function guardar(datos) {
+    function abrirModal(datos = {}) {
+        setErrorGuardar(null);
+        open(datos);
+    }
+
+    function cerrarModal() {
+        setErrorGuardar(null);
+        close();
+    }
+
+    async function guardar(datos, archivoImagen) {
         setGuardando(true);
+        setErrorGuardar(null);
         try {
-            if (modal) await actualizarProducto(modal.id, datos);
-            else await crearProducto(datos);
-            close();
-            await cargar();
-        } catch {
-            // El error queda disponible en usePeticion.
+            if (modal?.id) {
+                await actualizarProducto(modal.id, datos, archivoImagen);
+            } else {
+                await crearProducto(datos, archivoImagen);
+            }
+            cerrarModal();
+            await refresh();
+        } catch (errorPeticion) {
+            setErrorGuardar(
+                errorPeticion.response?.data?.mensaje ||
+                "No se pudo guardar el producto. Verificá los datos e intentá de nuevo."
+            );
         } finally {
             setGuardando(false);
         }
@@ -45,122 +85,93 @@ function AdminProductos() {
         if (!window.confirm(`¿Eliminar “${producto.nombre}”?`)) return;
         try {
             await eliminarProducto(producto.id);
-            await cargar();
+            await refresh();
         } catch {
-            // El error queda disponible en usePeticion.
+            // El error queda disponible en useDataTable -> usePeticion.
         }
     }
 
+    const totalPaginas = Math.ceil((productosResponse?.total || 0) / porPagina);
+
     return (
         <section>
-            <Cabecera etiqueta="Productos" titulo="Catálogo de productos" />
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
-                <input
+            <PageHeader
+                etiqueta="Productos"
+                titulo="Catálogo de productos"
+                acciones={
+                    esAdministrador && (
+                        <Button
+                            onClick={function () { abrirModal({}); }}
+                            icon={Plus}
+                        >
+                            Nuevo producto
+                        </Button>
+                    )
+                }
+            />
+
+            <FilterBar>
+                <Input
                     value={busqueda}
                     onChange={function (e) {
-                        setBusqueda(e.target.value);
-                        setPagina(1);
+                        setSearch(e.target.value);
                     }}
-                    placeholder="Buscar por nombre"
-                    className="border border-line bg-ticket px-3 py-2 font-mono-ticket text-sm outline-none focus:border-forest"
+                    placeholder="Buscar por nombre..."
+                    icon={Search}
                 />
-                {esAdministrador && (
-                    <button
-                        onClick={function () { open({}); }}
-                        className="flex cursor-pointer items-center justify-center gap-2 bg-forest px-4 py-2 font-mono-ticket text-sm text-paper"
-                    >
-                        <Plus size={17} />Nuevo producto
-                    </button>
-                )}
-            </div>
+            </FilterBar>
 
-            {error && <Alerta texto={error} />}
-            {cargando ? (
-                <Carga />
-            ) : (
-                <div className="mt-5 overflow-x-auto border border-line bg-ticket">
-                    <table className="w-full min-w-175 text-left">
-                        <thead className="border-b border-line bg-paper font-mono-ticket text-xs uppercase text-ink/60">
-                            <tr>
-                                <th className="p-3">Nombre</th>
-                                <th>Precio</th>
-                                <th>Disponible</th>
-                                <th>Categoría</th>
-                                {esAdministrador && <th className="p-3">Acciones</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {visibles.map(function (p) {
-                                return (
-                                    <tr key={p.id} className="border-b border-line last:border-0">
-                                        <td className="p-3 font-medium">{p.nombre}</td>
-                                        <td>${Number(p.precio).toFixed(2)}</td>
-                                        <td>{p.stock - (p.stockReservado || 0)}</td>
-                                        <td>{p.categoria}</td>
-                                        {esAdministrador && (
-                                            <td className="p-3">
-                                                <div className="flex gap-2">
-                                                    <button onClick={function () { open(p); }} className="cursor-pointer text-forest" aria-label="Editar">
-                                                        <Pencil size={17} />
-                                                    </button>
-                                                    <button onClick={function () { borrar(p); }} className="cursor-pointer text-red-600" aria-label="Eliminar">
-                                                        <Trash2 size={17} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                    {!visibles.length && <p className="p-5 font-mono-ticket text-sm text-ink/60">No hay productos que coincidan.</p>}
-                </div>
-            )}
+            <DataTable
+                isLoading={cargando}
+                error={error}
+                data={productos}
+            >
+                <TableHeader>
+                    <tr className="border-b border-line bg-paper text-xs text-ink/60">
+                        <TableHead className="w-16">Imagen</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Precio</TableHead>
+                        <TableHead>Disponible</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        {esAdministrador && <TableHead className="text-right">Acciones</TableHead>}
+                    </tr>
+                </TableHeader>
+                <TableBody className="divide-y divide-line">
+                    {productos.map(function (p) {
+                        return (
+                            <AdminProductoRow
+                                key={p.id}
+                                producto={p}
+                                esAdministrador={esAdministrador}
+                                onEdit={abrirModal}
+                                onDelete={borrar}
+                            />
+                        );
+                    })}
+                    {!productos.length && (
+                        <TableEmpty
+                            colSpan={esAdministrador ? 6 : 5}
+                            mensaje="No hay productos que coincidan con la búsqueda."
+                        />
+                    )}
+                </TableBody>
+            </DataTable>
 
-            <Paginacion pagina={pagina} total={totalPaginas} cambiar={setPagina} />
+            <Pagination pagina={pagina} total={totalPaginas} cambiar={setPage} />
+
             {esAdministrador && modal !== null && (
                 <ProductoForm
                     producto={modal.id ? modal : null}
-                    alCerrar={close}
+                    alCerrar={cerrarModal}
                     alGuardar={guardar}
                     guardando={guardando}
+                    error={errorGuardar}
+                    categorias={categorias}
+                    tiposProducto={tiposProducto}
+                    errorClasificacion={errorClasificacion}
                 />
             )}
         </section>
-    );
-}
-
-export function Cabecera({ etiqueta, titulo }) {
-    return (
-        <>
-            <p className="font-mono-ticket text-xs uppercase tracking-[.25em] text-forest">{etiqueta}</p>
-            <h1 className="mt-2 font-display text-3xl sm:text-4xl">{titulo}</h1>
-        </>
-    );
-}
-
-export function Carga() {
-    return <MensajeCarga className="mt-8" />;
-}
-
-export function Alerta({ texto }) {
-    return <MensajeError texto={texto} className="mt-4" />;
-}
-
-export function Paginacion({ pagina, total, cambiar }) {
-    return (
-        total > 1 && (
-            <div className="mt-6 flex justify-center gap-4 font-mono-ticket text-sm">
-                <button disabled={pagina === 1} onClick={function () { cambiar(pagina - 1); }} className="cursor-pointer text-forest disabled:opacity-30">
-                    Anterior
-                </button>
-                <span>{pagina} / {total}</span>
-                <button disabled={pagina === total} onClick={function () { cambiar(pagina + 1); }} className="cursor-pointer text-forest disabled:opacity-30">
-                    Siguiente
-                </button>
-            </div>
-        )
     );
 }
 

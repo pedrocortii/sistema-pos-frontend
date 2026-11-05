@@ -1,10 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { cancelarVentaPublica, cobrarVentaPublica, obtenerComprobante } from "../api/ventas";
+import QRCode from "qrcode";
+import { AlertCircle } from "lucide-react";
+import { cancelarVentaPublica, obtenerComprobante } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import MensajeCarga from "../components/MensajeCarga";
-import MensajeError from "../components/MensajeError";
+import { Card } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
+import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
 
 function formatearFecha(fechaIso) {
@@ -29,32 +35,31 @@ function obtenerErrorPago(error) {
 
 function ReimprimirComprobante() {
     const { codigo } = useParams();
+    const [qrGenerado, setQrGenerado] = useState({ fuente: "", url: "" });
+    const [ventaLocal, setVentaLocal] = useState(null);
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const limpiarUltimoComprobante = useCarritoStore(function (estado) { return estado.limpiarUltimoComprobante; });
     const {
-        respuesta: venta,
+        respuesta: respuestaVenta,
         cargando,
         error: errorComprobante,
         ejecutar: cargarComprobante,
     } = usePeticion(obtenerComprobante, { obtenerMensajeError: obtenerErrorComprobante });
     const {
-        cargando: procesandoPago,
-        error: errorPago,
-        ejecutar: ejecutarPago,
-    } = usePeticion(cobrarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
-    const {
         cargando: procesandoCancelacion,
         error: errorCancelacion,
         ejecutar: ejecutarCancelacion,
     } = usePeticion(cancelarVentaPublica, { obtenerMensajeError: obtenerErrorPago });
-    const procesando = procesandoPago || procesandoCancelacion;
-    const errorPagoVisible = errorPago || errorCancelacion;
+    const venta = ventaLocal || respuestaVenta;
+    const procesando = procesandoCancelacion;
+    const errorPagoVisible = errorCancelacion;
 
     useEffect(function () {
         async function cargar() {
             try {
                 const v = await cargarComprobante(codigo);
-                if (v.estado === "PENDIENTE") {
+                setVentaLocal(v);
+                if (!["CANCELADA", "RETIRADA"].includes(v.estado)) {
                     setUltimoComprobante({
                         codigo: v.codigoComprobante,
                         estado: v.estado,
@@ -70,21 +75,55 @@ function ReimprimirComprobante() {
         cargar();
     }, [codigo, cargarComprobante, setUltimoComprobante, limpiarUltimoComprobante]);
 
-    async function manejarPagar() {
-        if (!venta) return;
+    useEffect(function () {
+        if (!venta || ["CANCELADA", "RETIRADA"].includes(venta.estado)) return undefined;
 
-        try {
-            // MOCK de pago: en realidad aca iria el redirect a MercadoPago.
-            // Cuando MP notifica al webhook del back, el back llama a cobrarVenta.
-            // Por ahora simulamos que el pago se concreto y cobramos directo.
-            await ejecutarPago(venta.id);
-            // Recargamos el comprobante para mostrar el estado actualizado.
-            await cargarComprobante(codigo);
-            limpiarUltimoComprobante();
-        } catch {
-            // El hook mantiene el mensaje visible para la persona usuaria.
+        const interval = window.setInterval(function () {
+            obtenerComprobante(codigo).then(function (v) {
+                setVentaLocal(v);
+                if (!["CANCELADA", "RETIRADA"].includes(v.estado)) {
+                    setUltimoComprobante({
+                        codigo: v.codigoComprobante,
+                        estado: v.estado,
+                        total: v.total
+                    });
+                } else {
+                    limpiarUltimoComprobante();
+                }
+            }).catch(function () {
+                // La petición siguiente se hará nuevamente en el próximo ciclo.
+            });
+        }, 5000);
+
+        return function () { window.clearInterval(interval); };
+    }, [codigo, venta, setUltimoComprobante, limpiarUltimoComprobante]);
+
+    useEffect(function () {
+        let activo = true;
+
+        if (!venta?.pagoQrData) return undefined;
+
+        const contenido = venta.pagoQrData;
+        if (/^data:image\//i.test(contenido)) {
+            return undefined;
         }
-    }
+
+        QRCode.toDataURL(contenido, {
+            width: 192,
+            margin: 2,
+            errorCorrectionLevel: "H"
+        }).then(function (dataUrl) {
+            if (activo) setQrGenerado({ fuente: contenido, url: dataUrl });
+        }).catch(function () {
+            if (activo) setQrGenerado({ fuente: contenido, url: "" });
+        });
+
+        return function () { activo = false; };
+    }, [venta?.pagoQrData]);
+
+    const urlQr = /^data:image\//i.test(venta?.pagoQrData || "")
+        ? venta.pagoQrData
+        : qrGenerado.fuente === venta?.pagoQrData ? qrGenerado.url : "";
 
     async function manejarCancelar() {
         if (!venta) return;
@@ -113,21 +152,27 @@ function ReimprimirComprobante() {
             <div className="min-h-screen bg-paper">
                 <EncabezadoCliente />
                 <main className="max-w-2xl mx-auto px-6 py-20 text-center">
-                    <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-red-600">
-                        Error
-                    </p>
-                    <h1 className="font-display text-3xl text-ink mt-3">
-                        No se encontro el comprobante
-                    </h1>
-                    <p className="font-mono-ticket text-sm text-ink/60 mt-3">
-                        {errorComprobante}
-                    </p>
-                    <Link
-                        to="/catalogo"
-                        className="inline-block mt-8 bg-forest hover:bg-forest-dark text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 px-8 transition-colors no-underline"
-                    >
-                        Ir al catalogo
-                    </Link>
+                    <EmptyState
+                        icono={AlertCircle}
+                        titulo="No se encontró el comprobante"
+                        descripcion={errorComprobante}
+                        accion={
+                            <Link to="/catalogo">
+                                <Button>Ir al catálogo</Button>
+                            </Link>
+                        }
+                    />
+                </main>
+            </div>
+        );
+    }
+
+    if (!venta) {
+        return (
+            <div className="min-h-screen bg-paper">
+                <EncabezadoCliente />
+                <main className="max-w-2xl mx-auto px-6 py-20 text-center">
+                    <MensajeCarga texto="Cargando comprobante..." />
                 </main>
             </div>
         );
@@ -141,39 +186,32 @@ function ReimprimirComprobante() {
         <div className="min-h-screen bg-paper">
             <EncabezadoCliente />
             <main className="max-w-2xl mx-auto px-6 py-10">
-                <div className="bg-ticket border border-line p-8">
+                <Card className="p-8 shadow-sm">
                     <div className="text-center border-b border-dashed border-line pb-4">
-                        <p className="font-mono-ticket text-xs tracking-[0.25em] uppercase text-ink/50">
+                        <p className="font-mono-ticket text-xs text-forest">
                             Comprobante
                         </p>
-                        <h1 className="font-display text-3xl text-ink mt-2">
+                        <h1 className="font-display text-3xl text-ink mt-1">
                             Sistema POS
                         </h1>
                     </div>
 
                     <div className="grid grid-cols-2 gap-y-3 gap-x-6 mt-6 font-mono-ticket text-sm">
                         <div>
-                            <p className="text-xs text-ink/50 uppercase tracking-wide">Codigo</p>
-                            <p className="text-ink">{venta.codigoComprobante}</p>
+                            <p className="text-xs text-ink/50">Código</p>
+                            <p className="text-ink font-bold">{venta.codigoComprobante}</p>
                         </div>
                         <div>
-                            <p className="text-xs text-ink/50 uppercase tracking-wide">Fecha</p>
+                            <p className="text-xs text-ink/50">Fecha</p>
                             <p className="text-ink">{formatearFecha(venta.creadoEn || venta.fecha)}</p>
                         </div>
                         <div>
-                            <p className="text-xs text-ink/50 uppercase tracking-wide">Estado</p>
-                            <p className={
-                                "text-ink font-bold " +
-                                (venta.estado === "COBRADA" ? "text-forest" :
-                                 venta.estado === "CANCELADA" ? "text-red-600" :
-                                 "text-amber")
-                            }>
-                                {venta.estado === "PENDIENTE" ? "PENDIENTE DE PAGO" : venta.estado}
-                            </p>
+                            <p className="text-xs text-ink/50 mb-1">Estado</p>
+                            <Badge estado={venta.estado === "PENDIENTE" ? "PENDIENTE DE PAGO" : venta.estado} />
                         </div>
                         <div>
-                            <p className="text-xs text-ink/50 uppercase tracking-wide">Cliente</p>
-                            <p className="text-ink">{cliente}</p>
+                            <p className="text-xs text-ink/50">Cliente</p>
+                            <p className="text-ink font-medium">{cliente}</p>
                             {venta.clienteDni && (
                                 <p className="text-xs text-ink/60">DNI: {venta.clienteDni}</p>
                             )}
@@ -181,8 +219,8 @@ function ReimprimirComprobante() {
                     </div>
 
                     <div className="mt-6 border-t border-dashed border-line pt-4">
-                        <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50 mb-3">
-                            Detalle
+                        <p className="font-mono-ticket text-xs text-ink/50 mb-3">
+                            Detalle de productos
                         </p>
                         <div className="space-y-2">
                             {(venta.detalles || []).map(function (detalle) {
@@ -191,7 +229,7 @@ function ReimprimirComprobante() {
                                         <span className="text-ink">
                                             {detalle.cantidad} x {detalle.producto ? detalle.producto.nombre : "Producto"}
                                         </span>
-                                        <span className="text-ink">
+                                        <span className="text-ink font-medium">
                                             ${Number(detalle.subtotal).toFixed(2)}
                                         </span>
                                     </div>
@@ -201,48 +239,83 @@ function ReimprimirComprobante() {
                     </div>
 
                     <div className="flex items-center justify-between mt-6 border-t border-line pt-4">
-                        <span className="font-mono-ticket text-sm uppercase tracking-wide text-ink/60">
+                        <span className="font-mono-ticket text-sm text-ink/60">
                             Total
                         </span>
-                        <span className="font-mono-ticket text-2xl text-forest">
+                        <span className="font-mono-ticket text-3xl text-forest font-bold">
                             ${Number(venta.total).toFixed(2)}
                         </span>
                     </div>
 
-                    {errorPagoVisible && <MensajeError texto={errorPagoVisible} className="mt-4 text-center" />}
+                    {errorPagoVisible && <Alert tipo="error" texto={errorPagoVisible} className="mt-4 text-center" />}
+
+                    {venta.pagoQrData && (
+                        <div className="mt-6 bg-white border border-line p-4 text-center">
+                            <p className="font-mono-ticket text-xs text-ink/50 mb-3">
+                                Escanea para pagar
+                            </p>
+                            {urlQr ? (
+                                <img
+                                    src={urlQr}
+                                    alt="Código QR para pagar la compra"
+                                    className="mx-auto w-48 h-48 object-contain"
+                                />
+                            ) : (
+                                <p className="font-mono-ticket text-xs text-ink/60">
+                                    Generando código QR...
+                                </p>
+                            )}
+                            <p className="font-mono-ticket text-xs text-ink/60 mt-3">
+                                La orden expira en 15 minutos.
+                            </p>
+                        </div>
+                    )}
+
+                    {venta.estado === "LISTA_PARA_RETIRAR" && (
+                        <Alert
+                            variant="success"
+                            titulo="Tu pedido está listo para retirar"
+                            texto="Ya podés pasar a buscarlo presentando este comprobante."
+                            className="mt-6 text-center"
+                        />
+                    )}
+
+                    {venta.estado === "EN_PREPARACION" && (
+                        <Alert
+                            variant="info"
+                            titulo="Estamos preparando tu pedido"
+                            texto="Te avisaremos cuando esté listo para retirar."
+                            className="mt-6 text-center"
+                        />
+                    )}
 
                     {venta.estado === "COBRADA" && (
-                        <div className="mt-6 bg-emerald-50 border border-emerald-300 p-4 rounded text-center font-mono-ticket text-xs text-emerald-800">
-                            Compra cobrada con éxito. Tu comprobante ya está disponible en esta pantalla.
-                        </div>
+                        <Alert
+                            variant="success"
+                            titulo="¡Pago realizado con éxito!"
+                            texto="Tu comprobante ya está acreditado y disponible en esta pantalla."
+                            className="mt-6 text-center"
+                        />
                     )}
 
                     {venta.estado === "PENDIENTE" && (
-                        <div className="mt-6 flex flex-col gap-3">
-                            <button
-                                onClick={manejarPagar}
-                                disabled={procesando}
-                                className="w-full bg-forest hover:bg-forest-dark disabled:opacity-60 text-paper font-mono-ticket text-sm uppercase tracking-wide py-3 transition-colors"
-                            >
-                                {procesando ? "Procesando pago..." : "Pagar con billetera virtual"}
-                            </button>
-                            <button
+                        <div className="mt-6 flex flex-col items-center">
+                            <Button
+                                variant="danger-outline"
+                                size="sm"
                                 onClick={manejarCancelar}
-                                disabled={procesando}
-                                className="font-mono-ticket text-sm uppercase tracking-wide text-red-600 hover:text-red-700 border-b-2 border-red-600 pb-1 self-center"
+                                loading={procesando}
+                                loadingText="Cancelando..."
                             >
                                 Cancelar compra
-                            </button>
+                            </Button>
                         </div>
                     )}
-                </div>
+                </Card>
 
                 <div className="text-center mt-8">
-                    <Link
-                        to="/catalogo"
-                        className="font-mono-ticket text-sm uppercase tracking-wide text-forest border-b-2 border-forest pb-1 no-underline"
-                    >
-                        Volver al catalogo
+                    <Link to="/catalogo">
+                        <Button variant="ghost">← Volver al catálogo</Button>
                     </Link>
                 </div>
             </main>

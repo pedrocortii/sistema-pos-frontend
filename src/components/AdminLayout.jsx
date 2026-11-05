@@ -1,11 +1,14 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, X } from "lucide-react";
+import { BarChart3, Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, Tag, Tags, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 const enlaces = [
+    { to: "/admin/dashboard", texto: "Dashboard", icono: BarChart3, soloAdministrador: true },
     { to: "/admin/venta-rapida", texto: "Venta rápida", icono: ShoppingCart },
     { to: "/admin/productos", texto: "Productos", icono: Package },
+    { to: "/admin/promociones", texto: "Promociones", icono: Tag, soloAdministrador: true },
+    { to: "/admin/clasificacion", texto: "Categorías y tipos", icono: Tags, soloAdministrador: true },
     { to: "/admin/stock", texto: "Stock", icono: Boxes },
     { to: "/admin/ventas", texto: "Ventas", icono: ReceiptText }
 ];
@@ -41,11 +44,11 @@ function AdminLayout() {
                 </div>
 
                 <nav aria-label="Administración" className="flex-1 px-3 py-5">
-                    <p className="px-3 pb-3 font-mono-ticket text-xs uppercase tracking-[0.2em] text-ink/45">
+                    <p className="px-3 pb-3 text-xs text-ink/45">
                         Administración
                     </p>
                     <ul className="space-y-1">
-                        {enlaces.map(function (enlace) {
+                        {enlaces.filter(function (enlace) { return !enlace.soloAdministrador || usuario?.rol === "Administrador"; }).map(function (enlace) {
                             const Icono = enlace.icono;
                             return (
                                 <li key={enlace.to}>
@@ -53,7 +56,7 @@ function AdminLayout() {
                                         to={enlace.to}
                                         onClick={function () { setMenuAbierto(false); }}
                                         className={function ({ isActive }) {
-                                            return "flex items-center gap-3 rounded-md px-3 py-2.5 font-mono-ticket text-sm uppercase tracking-wide no-underline transition-colors focus-visible:outline-2 focus-visible:outline-forest " + (isActive ? "bg-forest text-paper" : "text-ink/70 hover:bg-paper hover:text-forest");
+                                            return "flex items-center gap-3 rounded-md border-l-2 px-3 py-2.5 text-sm no-underline transition-colors focus-visible:outline-2 focus-visible:outline-forest " + (isActive ? "border-forest bg-forest/10 font-semibold text-forest" : "border-transparent text-ink/70 hover:bg-paper hover:text-forest");
                                         }}
                                     >
                                         <Icono size={18} aria-hidden="true" />
@@ -80,13 +83,13 @@ function AdminLayout() {
 
                     <div className="ml-auto flex items-center gap-3">
                         <div className="hidden text-right sm:block">
-                            <p className="font-mono-ticket text-xs uppercase tracking-wide text-ink/50">Sesión iniciada</p>
-                            <p className="font-mono-ticket text-sm text-ink">{usuario ? usuario.nombre : "Usuario"}</p>
+                            <p className="text-xs text-ink/50">Sesión iniciada</p>
+                            <p className="text-sm text-ink">{usuario ? usuario.nombre : "Usuario"}</p>
                         </div>
                         <button
                             type="button"
                             onClick={logout}
-                            className="flex cursor-pointer items-center gap-2 rounded-md border border-forest px-3 py-2 font-mono-ticket text-xs uppercase tracking-wide text-forest transition-colors hover:bg-forest hover:text-paper focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-2"
+                            className="flex cursor-pointer items-center gap-2 rounded-md border border-forest px-3 py-2 text-xs text-forest transition-colors hover:bg-forest hover:text-paper focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-2"
                         >
                             <LogOut size={16} aria-hidden="true" />
                             <span className="hidden sm:inline">Salir</span>

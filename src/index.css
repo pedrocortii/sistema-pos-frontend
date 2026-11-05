@@ -1,18 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Fraunces", serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono-ticket: "IBM Plex Mono", monospace;
 
-  --color-paper: #faf7f1;
+  --color-paper: #f7f7f4;
   --color-ticket: #ffffff;
-  --color-ink: #1e2321;
-  --color-forest: #1f6f54;
-  --color-forest-dark: #14503c;
-  --color-amber: #e0a458;
-  --color-line: #d9d2c4;
+  --color-ink: #252923;
+  --color-forest: #245744;
+  --color-forest-dark: #194333;
+  --color-amber: #d8aa55;
+  --color-line: #e3e5e0;
+}
+
+:root {
+  color-scheme: light;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  background: #f7f7f4;
+  color: #252923;
 }
 
 body {
   margin: 0;
+  min-width: 320px;
+  background: #f7f7f4;
+  color: #252923;
+  -webkit-font-smoothing: antialiased;
 }
+
+button, input, select, textarea { font: inherit; }
+a { color: inherit; }

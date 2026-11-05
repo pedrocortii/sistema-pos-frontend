@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { stockAdjustmentSchema } from "../validations/stockSchema";
+import { Modal } from "./ui/Modal";
+import { Input } from "./ui/Input";
+import { Textarea } from "./ui/Textarea";
+import { Button } from "./ui/Button";
+import { Alert } from "./ui/Alert";
 
 function AjustarStockModal({ producto, alCerrar, alGuardar, guardando }) {
     const {
@@ -31,61 +35,47 @@ function AjustarStockModal({ producto, alCerrar, alGuardar, guardando }) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-4" role="dialog" aria-modal="true">
-            <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md bg-ticket p-6 shadow-xl">
-                <div className="flex justify-between">
-                    <div>
-                        <p className="font-mono-ticket text-xs uppercase tracking-wide text-forest">Stock</p>
-                        <h2 className="font-display text-2xl">Ajustar {producto.nombre}</h2>
-                    </div>
-                    <button type="button" onClick={alCerrar} className="cursor-pointer p-1" aria-label="Cerrar">
-                        <X />
-                    </button>
-                </div>
-
-                <p className="mt-3 font-mono-ticket text-sm text-ink/60">
-                    Disponible actual: <span className="font-bold text-ink">{producto.stockDisponible}</span>
+        <Modal
+            abierto={true}
+            alCerrar={alCerrar}
+            etiqueta="Stock"
+            titulo={`Ajustar ${producto.nombre}`}
+            tamano="md"
+        >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <p className="text-sm text-ink/60">
+                    Disponible actual: <span className="font-mono-ticket font-bold text-ink">{producto.stockDisponible}</span>
                 </p>
 
-                <div className="mt-4">
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                        Cantidad (+/-)
-                    </label>
-                    <input
-                        type="number"
-                        step="1"
-                        {...register("cantidad")}
-                        className="mt-1 w-full border border-line bg-paper p-2 text-ink outline-none focus:border-forest"
-                    />
-                    {errors.cantidad && <p className="mt-1 text-xs text-red-600">{errors.cantidad.message}</p>}
-                </div>
+                <Input
+                    label="Cantidad (+/-)"
+                    type="number"
+                    step="1"
+                    required
+                    {...register("cantidad")}
+                    error={errors.cantidad}
+                />
 
-                <div className="mt-4">
-                    <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                        Motivo
-                    </label>
-                    <textarea
-                        {...register("motivo")}
-                        className="mt-1 min-h-20 w-full border border-line bg-paper p-2 text-ink outline-none focus:border-forest"
-                    />
-                    {errors.motivo && <p className="mt-1 text-xs text-red-600">{errors.motivo.message}</p>}
-                </div>
+                <Textarea
+                    label="Motivo"
+                    rows={2}
+                    required
+                    {...register("motivo")}
+                    error={errors.motivo}
+                />
 
-                {localError && <p className="mt-3 font-mono-ticket text-sm text-red-600">{localError}</p>}
+                {localError && <Alert tipo="error" texto={localError} />}
 
-                <div className="mt-6 flex justify-end gap-3">
-                    <button type="button" onClick={alCerrar} className="cursor-pointer px-4 py-2 font-mono-ticket text-sm">
+                <div className="flex justify-end gap-3 pt-3 border-t border-line">
+                    <Button variant="secondary" onClick={alCerrar}>
                         Cancelar
-                    </button>
-                    <button
-                        disabled={guardando}
-                        className="cursor-pointer bg-forest px-4 py-2 font-mono-ticket text-sm text-paper disabled:opacity-60"
-                    >
-                        {guardando ? "Guardando..." : "Confirmar"}
-                    </button>
+                    </Button>
+                    <Button type="submit" loading={guardando} loadingText="Guardando...">
+                        Confirmar
+                    </Button>
                 </div>
             </form>
-        </div>
+        </Modal>
     );
 }
 

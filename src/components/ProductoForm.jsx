@@ -1,65 +1,51 @@
-import { X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Upload } from "lucide-react";
 import { useProductForm } from "../hooks/useProductForm";
+import ImagenProducto from "./ImagenProducto";
+import { Modal } from "./ui/Modal";
+import { Input } from "./ui/Input";
+import { Select } from "./ui/Select";
+import { Textarea } from "./ui/Textarea";
+import { Button } from "./ui/Button";
+import { Alert } from "./ui/Alert";
 
-function ProductoForm({ producto, alCerrar, alGuardar, guardando }) {
-    const {
-        register,
-        handleSubmit,
-        errors,
-    } = useProductForm(producto, alGuardar);
+function ProductoForm({ producto, alCerrar, alGuardar, guardando, error, categorias = [], tiposProducto = [], errorClasificacion }) {
+    const [archivoImagen, setArchivoImagen] = useState(null);
+    const [errorImagen, setErrorImagen] = useState("");
+    const vistaPrevia = useMemo(() => archivoImagen ? URL.createObjectURL(archivoImagen) : "", [archivoImagen]);
+    useEffect(() => () => { if (vistaPrevia) URL.revokeObjectURL(vistaPrevia); }, [vistaPrevia]);
+    const { register, handleSubmit, errors } = useProductForm(producto, (datos) => alGuardar(datos, archivoImagen));
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-4" role="dialog" aria-modal="true" aria-labelledby="producto-form-titulo">
-            <form onSubmit={handleSubmit} className="max-h-full w-full max-w-lg overflow-y-auto bg-ticket p-6 shadow-xl">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <p className="font-mono-ticket text-xs uppercase tracking-wide text-forest">Productos</p>
-                        <h2 id="producto-form-titulo" className="mt-1 font-display text-2xl">{producto ? "Editar producto" : "Nuevo producto"}</h2>
-                    </div>
-                    <button type="button" onClick={alCerrar} className="cursor-pointer p-1" aria-label="Cerrar">
-                        <X />
-                    </button>
-                </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    <Campo etiqueta="Nombre" nombre="nombre" register={register} error={errors.nombre} requerido />
-                    <Campo etiqueta="Categoría" nombre="categoria" register={register} error={errors.categoria} requerido />
-                    <Campo etiqueta="Precio" nombre="precio" tipo="number" min="0.01" step="0.01" register={register} error={errors.precio} requerido />
-                    <Campo etiqueta="Stock inicial" nombre="stock" tipo="number" min="0" step="1" register={register} error={errors.stock} requerido />
-                    <label className="sm:col-span-2 font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-                        Descripción
-                        <textarea
-                            {...register("descripcion")}
-                            className="mt-1 min-h-24 w-full border border-line bg-paper p-2 text-sm text-ink outline-none focus:border-forest"
-                        />
-                        {errors.descripcion && <p className="mt-1 text-xs text-red-600">{errors.descripcion.message}</p>}
-                    </label>
-                </div>
-                <div className="mt-6 flex justify-end gap-3">
-                    <button type="button" onClick={alCerrar} className="cursor-pointer px-4 py-2 font-mono-ticket text-sm">Cancelar</button>
-                    <button disabled={guardando} className="cursor-pointer bg-forest px-4 py-2 font-mono-ticket text-sm text-paper disabled:opacity-60">
-                        {guardando ? "Guardando..." : "Guardar"}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-}
+    function seleccionarImagen(event) {
+        const archivo = event.target.files?.[0];
+        event.target.value = "";
+        if (!archivo) return;
+        if (!["image/jpeg", "image/png", "image/webp"].includes(archivo.type)) return setErrorImagen("Seleccioná una imagen JPG, PNG o WebP.");
+        if (archivo.size > 5 * 1024 * 1024) return setErrorImagen("La imagen no puede superar los 5 MB.");
+        setErrorImagen(""); setArchivoImagen(archivo);
+    }
 
-function Campo({ etiqueta, nombre, register, error, tipo = "text", requerido, min, step }) {
-    return (
-        <label className="font-mono-ticket text-xs uppercase tracking-wide text-ink/60">
-            {etiqueta}
-            <input
-                type={tipo}
-                min={min}
-                step={step}
-                required={requerido}
-                {...register(nombre)}
-                className="mt-1 w-full border border-line bg-paper p-2 text-sm text-ink outline-none focus:border-forest"
-            />
-            {error && <p className="mt-1 text-xs text-red-600">{error.message}</p>}
-        </label>
-    );
+    return <Modal abierto={true} alCerrar={alCerrar} etiqueta="Productos" titulo={producto ? "Editar producto" : "Nuevo producto"} tamano="lg">
+        <form onSubmit={handleSubmit} className="space-y-5">
+            {error && <Alert tipo="error" texto={error} />}
+            <div>
+                <p className="font-mono-ticket text-xs text-ink/60">Imagen del producto</p>
+                <ImagenProducto imagen={producto?.imagen} vistaPrevia={vistaPrevia} alt={producto ? "Imagen de " + producto.nombre : "Vista previa del producto"} className="mt-2 h-32 w-32 rounded border border-line bg-paper object-cover" />
+                <label className="mt-3 inline-flex cursor-pointer items-center gap-2 border border-line px-3 py-2 font-mono-ticket text-xs text-ink"><Upload size={15} />{archivoImagen || producto?.imagen ? "Cambiar imagen" : "Subir imagen"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={seleccionarImagen} className="sr-only" /></label>
+                {errorImagen && <p className="mt-1 text-xs text-red-600" role="alert">{errorImagen}</p>}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+                <Input label="Nombre" required {...register("nombre")} error={errors.nombre} />
+                <Select label="Categoría" required options={[{ value: "", label: "Seleccioná una categoría" }, ...categorias.map((item) => ({ value: item.id, label: item.nombre }))]} {...register("categoriaId")} error={errors.categoriaId} disabled={Boolean(errorClasificacion) || !categorias.length} />
+                <Select label="Tipo de producto" required options={[{ value: "", label: "Seleccioná un tipo" }, ...tiposProducto.map((item) => ({ value: item.id, label: item.nombre }))]} {...register("tipoProductoId")} error={errors.tipoProductoId} disabled={Boolean(errorClasificacion) || !tiposProducto.length} />
+                <Input label="Precio" type="number" min="0.01" step="0.01" required {...register("precio")} error={errors.precio} />
+                <Input label="Stock inicial" type="number" min="0" step="1" required {...register("stock")} error={errors.stock} />
+                <div className="sm:col-span-2"><Textarea label="Descripción" rows={3} {...register("descripcion")} error={errors.descripcion} /></div>
+            </div>
+            {errorClasificacion && <Alert tipo="error" texto={errorClasificacion} />}
+            <div className="flex justify-end gap-3 border-t border-line pt-3"><Button variant="secondary" onClick={alCerrar}>Cancelar</Button><Button type="submit" loading={guardando} loadingText="Guardando...">Guardar</Button></div>
+        </form>
+    </Modal>;
 }
 
 export default ProductoForm;

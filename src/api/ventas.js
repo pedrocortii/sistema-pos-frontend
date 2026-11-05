@@ -2,7 +2,10 @@ import http, { publicHttp } from "./http";
 
 export async function crearVenta(datos) {
     const respuesta = await http.post("/ventas", datos);
-    return respuesta.data.venta;
+    return {
+        ...respuesta.data.venta,
+        pago: respuesta.data.pago || null
+    };
 }
 
 // Registra una venta atendida por un cajero. A diferencia de crearVenta,
@@ -35,12 +38,32 @@ export async function obtenerVenta(id) {
     return respuesta.data.venta;
 }
 
-export async function cobrarVenta(id) {
-    const respuesta = await http.patch("/ventas/" + id + "/cobrar", { metodoPago: "Efectivo" });
+export async function consultarEstadoQr(id) {
+    const respuesta = await http.get("/ventas/" + id + "/pago-qr");
+    return respuesta.data.venta || respuesta.data;
+}
+
+export async function cobrarVenta(id, datos = { metodoPago: "Efectivo" }) {
+    const respuesta = await http.patch("/ventas/" + id + "/cobrar", datos);
     return respuesta.data.venta;
 }
 
 export async function cancelarVenta(id) {
     const respuesta = await http.patch("/ventas/" + id + "/cancelar", {});
+    return respuesta.data.venta;
+}
+
+export async function prepararVenta(id) {
+    const respuesta = await http.patch("/ventas/" + id + "/preparar", {});
+    return respuesta.data.venta;
+}
+
+export async function marcarVentaListaParaRetirar(id) {
+    const respuesta = await http.patch("/ventas/" + id + "/lista-para-retirar", {});
+    return respuesta.data.venta;
+}
+
+export async function marcarVentaRetirada(id) {
+    const respuesta = await http.patch("/ventas/" + id + "/retirar", {});
     return respuesta.data.venta;
 }
