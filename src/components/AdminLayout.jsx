@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { BarChart3, Boxes, LogOut, Menu, Package, ReceiptText, ShoppingCart, Tag, Tags, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import CampanaNotificaciones from "./CampanaNotificaciones";
 
 const enlaces = [
     { to: "/admin/dashboard", texto: "Dashboard", icono: BarChart3, soloAdministrador: true },
@@ -82,6 +83,7 @@ function AdminLayout() {
                     </button>
 
                     <div className="ml-auto flex items-center gap-3">
+                        <CampanaNotificaciones />
                         <div className="hidden text-right sm:block">
                             <p className="text-xs text-ink/50">Sesión iniciada</p>
                             <p className="text-sm text-ink">{usuario ? usuario.nombre : "Usuario"}</p>
