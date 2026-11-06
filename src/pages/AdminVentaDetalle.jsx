@@ -8,6 +8,7 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Alert } from "../components/ui/Alert";
+import { DescargarComprobante } from "../components/DescargarComprobante";
 import { usePeticion } from "../hooks/usePeticion";
 import { convertirACentavos, formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
@@ -101,6 +102,11 @@ function AdminVentaDetalle() {
                         <div className="mt-5 border-t border-line pt-4 text-right text-xl text-forest font-bold">
                             Total: ${Number(venta.total).toFixed(2)}
                         </div>
+                        <DescargarComprobante
+                            ventaId={venta.id}
+                            codigoComprobante={venta.codigoComprobante}
+                            className="mt-4"
+                        />
                     </Card>
 
                     <Card>
