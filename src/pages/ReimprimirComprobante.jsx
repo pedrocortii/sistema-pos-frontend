@@ -9,6 +9,7 @@ import MensajeCarga from "../components/MensajeCarga";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { DescargarComprobante } from "../components/DescargarComprobante";
 import { Alert } from "../components/ui/Alert";
 import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
@@ -246,6 +247,14 @@ function ReimprimirComprobante() {
                             ${Number(venta.total).toFixed(2)}
                         </span>
                     </div>
+
+                    {["COBRADA", "EN_PREPARACION", "LISTA_PARA_RETIRAR", "RETIRADA"].includes(venta.estado) && (
+                        <DescargarComprobante
+                            ventaId={venta.id}
+                            codigoComprobante={venta.codigoComprobante}
+                            className="mt-5 flex justify-center"
+                        />
+                    )}
 
                     {errorPagoVisible && <Alert tipo="error" texto={errorPagoVisible} className="mt-4 text-center" />}
 

@@ -137,10 +137,11 @@ function Carrito() {
 
                 {items.length > 0 && (
                     <>
-                        <div className="bg-ticket border border-line divide-y divide-line">
-                            {items.map(function (item) {
-                                return (
-                                    <div key={item.productoId} className="flex items-center justify-between gap-4 p-5">
+                        <div className="bg-ticket border border-line">
+                            <div className="divide-y divide-line">
+                                {items.map(function (item) {
+                                    return (
+                                        <div key={item.productoId} className="flex items-center justify-between gap-4 p-5">
                                         <ImagenProducto
                                             imagen={item.imagen}
                                             alt={"Imagen de " + item.nombre}
@@ -154,7 +155,7 @@ function Carrito() {
                                             </p>
                                             {item.promocion && item.promocionNoAplicable === null && (
                                                 <p className="font-mono-ticket text-xs text-forest mt-1">
-                                                    {item.promocion.titulo}: ahorrás ${(item.precioOriginal - item.precio).toFixed(2)} por unidad
+                                                    {item.promocion.titulo}: ahorrás ${((item.precioOriginal - item.precio) * item.cantidad).toFixed(2)}
                                                 </p>
                                             )}
                                             {item.promocionNoAplicable && (
@@ -189,12 +190,12 @@ function Carrito() {
                                                 <Trash2 size={18} />
                                             </Button>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
 
-                        <div className="flex items-center justify-between mt-8 border-t border-line pt-5">
+                        <div className="flex items-center justify-between border-t border-line p-5">
                             <span className="font-mono-ticket text-sm text-ink/60">
                                 Total
                             </span>
@@ -203,7 +204,7 @@ function Carrito() {
                             </span>
                         </div>
 
-                        <section className="mt-10">
+                        <section className="border-t border-line p-5 sm:p-6">
                             <p className="font-mono-ticket text-xs text-forest">
                                 Paso final
                             </p>
@@ -278,6 +279,7 @@ function Carrito() {
                                 </Button>
                             </form>
                         </section>
+                        </div>
                     </>
                 )}
             </main>

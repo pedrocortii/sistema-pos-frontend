@@ -5,6 +5,7 @@ import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
 import { Alert } from "./ui/Alert";
+import { DescargarComprobante } from "./DescargarComprobante";
 import { formatoMonedaARS } from "../utils/moneda";
 import { obtenerProducto } from "../api/productos";
 import { obtenerVenta } from "../api/ventas";
@@ -226,28 +227,34 @@ export function CompraCard({ compra }) {
                         </p>
                     )}
 
-                    <div className="mt-5 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon={RefreshCw}
-                            onClick={repetirCompra}
-                            loading={repitiendo}
-                            loadingText="Verificando..."
-                        >
-                            Repetir compra
-                        </Button>
-                        {resultadoRepetir && (
-                            <Alert tipo={resultadoRepetir.tipo} texto={resultadoRepetir.texto} className="m-0 flex-1" />
-                        )}
-                        {resultadoRepetir?.tipo === "success" && (
-                            <Link to="/carrito" className="shrink-0">
-                                <Button variant="primary" size="sm" icon={ShoppingCart}>Ir al carrito</Button>
-                            </Link>
-                        )}
-                    </div>
                 </div>
             )}
+
+            <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <DescargarComprobante
+                    ventaId={compra.id}
+                    codigoComprobante={compra.codigoComprobante}
+                />
+                <Button
+                    variant="outline"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={repetirCompra}
+                    loading={repitiendo}
+                    loadingText="Verificando..."
+                    className="w-full sm:w-auto"
+                >
+                    Repetir compra
+                </Button>
+                {resultadoRepetir && (
+                    <Alert tipo={resultadoRepetir.tipo} texto={resultadoRepetir.texto} className="m-0 flex-1" />
+                )}
+                {resultadoRepetir?.tipo === "success" && (
+                    <Link to="/carrito" className="shrink-0">
+                        <Button variant="primary" size="sm" icon={ShoppingCart}>Ir al carrito</Button>
+                    </Link>
+                )}
+            </div>
         </Card>
     );
 }

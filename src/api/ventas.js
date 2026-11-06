@@ -38,6 +38,27 @@ export async function obtenerVenta(id) {
     return respuesta.data.venta;
 }
 
+export async function descargarComprobante(id, codigoComprobante) {
+    const respuesta = await http.get("/ventas/" + encodeURIComponent(id) + "/comprobante.pdf", {
+        responseType: "blob"
+    });
+    const archivo = new Blob([respuesta.data], { type: "application/pdf" });
+    const url = URL.createObjectURL(archivo);
+    const enlace = document.createElement("a");
+    const codigoSeguro = String(codigoComprobante || "compra").replace(/[^a-zA-Z0-9_-]/g, "-");
+    enlace.href = url;
+    enlace.download = "comprobante-compra-" + codigoSeguro + ".pdf";
+    enlace.style.display = "none";
+    document.body.appendChild(enlace);
+
+    try {
+        enlace.click();
+    } finally {
+        enlace.remove();
+        window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+}
+
 export async function consultarEstadoQr(id) {
     const respuesta = await http.get("/ventas/" + id + "/pago-qr");
     return respuesta.data.venta || respuesta.data;
