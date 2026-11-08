@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { checkoutSchema } from "../validations/checkoutSchema";
 import { crearVenta } from "../api/ventas";
+import { consultarDisponibilidadRetiro } from "../api/retiros";
 import { useCarritoStore } from "../store/carritoStore";
 import { useAuthStore } from "../store/authStore";
 import EncabezadoCliente from "../components/EncabezadoCliente";
@@ -12,10 +13,12 @@ import ImagenProducto from "../components/ImagenProducto";
 import SelectorCantidad from "../components/SelectorCantidad";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Input } from "../components/ui/Input";
+import { Select } from "../components/ui/Select";
 import { Button } from "../components/ui/Button";
 import { Alert } from "../components/ui/Alert";
 import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
+import { formatearFechaRetiro } from "../utils/retiro";
 
 function obtenerErrorCheckout(error) {
     const datos = error.response?.data;
@@ -38,12 +41,39 @@ function Carrito() {
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const actualizarPerfilCliente = useAuthStore(function (estado) { return estado.actualizarPerfilCliente; });
+    const [fechasDisponibles, setFechasDisponibles] = useState([]);
+    const [fechaRetiro, setFechaRetiro] = useState("");
+    const [horaRetiro, setHoraRetiro] = useState("");
+    const [cargandoDisponibilidad, setCargandoDisponibilidad] = useState(true);
+    const [errorDisponibilidad, setErrorDisponibilidad] = useState(null);
     const dniCliente = usuario?.dni ?? usuario?.documento ?? usuario?.DNI ?? usuario?.clienteDni ?? "";
     const promocionesNoAplicables = items.filter(function (item) { return item.promocionNoAplicable; });
 
     const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
     const navegar = useNavigate();
+    const horariosDisponibles = fechasDisponibles.find(function (fecha) {
+        return fecha.fecha === fechaRetiro;
+    })?.horarios || [];
+    const horarioElegido = horariosDisponibles.find(function (horario) {
+        return horario.horaInicio === horaRetiro;
+    });
+
+    useEffect(function () {
+        let activo = true;
+        consultarDisponibilidadRetiro().then(function (respuesta) {
+            if (activo) setFechasDisponibles(respuesta.fechas || []);
+        }).catch(function (errorPeticion) {
+            if (activo) {
+                setErrorDisponibilidad(
+                    errorPeticion.response?.data?.mensaje || "No se pudo consultar la disponibilidad de retiro."
+                );
+            }
+        }).finally(function () {
+            if (activo) setCargandoDisponibilidad(false);
+        });
+        return function () { activo = false; };
+    }, []);
 
     const {
         register,
@@ -72,6 +102,11 @@ function Carrito() {
     }, [usuario, dniCliente, reset]);
 
     async function manejarConfirmarCompra(datosFactura) {
+        if (!fechaRetiro || !horarioElegido) {
+            setErrorDisponibilidad("Seleccioná una fecha y un horario de retiro disponibles.");
+            return;
+        }
+
         const itemsParaEnviar = items.map(function (item) {
             return { productoId: item.productoId, cantidad: item.cantidad };
         });
@@ -85,7 +120,12 @@ function Carrito() {
                 email: datosFactura.email.trim(),
                 confirmarEmail: datosFactura.confirmarEmail.trim()
             },
-            metodoPago: "MercadoPago"
+            metodoPago: "MercadoPago",
+            retiro: {
+                fecha: fechaRetiro,
+                horaInicio: horarioElegido.horaInicio,
+                horaFin: horarioElegido.horaFin
+            }
         };
 
         try {
@@ -107,7 +147,22 @@ function Carrito() {
             vaciarCarrito();
             navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
         } catch {
-            // El hook mantiene el mensaje visible para la persona usuaria.
+            try {
+                const disponibilidad = await consultarDisponibilidadRetiro();
+                setFechasDisponibles(disponibilidad.fechas || []);
+                if (!disponibilidad.fechas?.some(function (fecha) {
+                    return fecha.fecha === fechaRetiro && fecha.horarios.some(function (horario) {
+                        return horario.horaInicio === horaRetiro;
+                    });
+                })) {
+                    setFechaRetiro("");
+                    setHoraRetiro("");
+                }
+            } catch (errorPeticion) {
+                setErrorDisponibilidad(
+                    errorPeticion.response?.data?.mensaje || "No se pudo actualizar la disponibilidad de retiro."
+                );
+            }
         }
     }
 
@@ -257,6 +312,72 @@ function Carrito() {
                                     </div>
                                 </div>
 
+                                <section className="mt-6 border-t border-line pt-5">
+                                    <p className="font-mono-ticket text-xs text-forest">Retiro en el comercio</p>
+                                    <h3 className="font-display text-xl text-ink mt-1 mb-2">
+                                        Fecha y horario de retiro
+                                    </h3>
+                                    <p className="font-mono-ticket text-xs text-ink/60 mb-4">
+                                        Elegí un turno habilitado. La disponibilidad se verifica nuevamente al confirmar la compra.
+                                    </p>
+
+                                    {cargandoDisponibilidad ? (
+                                        <p role="status" className="text-sm text-ink/60">Consultando fechas disponibles...</p>
+                                    ) : fechasDisponibles.length > 0 ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <Select
+                                                label="Fecha"
+                                                value={fechaRetiro}
+                                                onChange={function (evento) {
+                                                    setFechaRetiro(evento.target.value);
+                                                    setHoraRetiro("");
+                                                }}
+                                                required
+                                            >
+                                                <option value="">Seleccioná una fecha</option>
+                                                {fechasDisponibles.map(function (fecha) {
+                                                    return (
+                                                        <option key={fecha.fecha} value={fecha.fecha}>
+                                                            {formatearFechaRetiro(fecha.fecha, true)}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </Select>
+                                            <Select
+                                                label="Horario"
+                                                value={horaRetiro}
+                                                onChange={function (evento) { setHoraRetiro(evento.target.value); }}
+                                                disabled={!fechaRetiro}
+                                                required
+                                            >
+                                                <option value="">Seleccioná un horario</option>
+                                                {horariosDisponibles.map(function (horario) {
+                                                    return (
+                                                        <option key={horario.horaInicio} value={horario.horaInicio}>
+                                                            {horario.horaInicio} a {horario.horaFin}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </Select>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-ink/60">
+                                            {errorDisponibilidad || "El comercio todavía no configuró fechas y horarios de retiro."}
+                                        </p>
+                                    )}
+
+                                    {horarioElegido && (
+                                        <div className="mt-4 border border-forest/20 bg-forest/5 p-3 text-sm">
+                                            <p className="font-semibold text-forest">Retiro programado</p>
+                                            <p>Fecha de retiro: {formatearFechaRetiro(fechaRetiro)}</p>
+                                            <p>Horario: {horarioElegido.horaInicio} a {horarioElegido.horaFin}</p>
+                                        </div>
+                                    )}
+                                    {errorDisponibilidad && fechasDisponibles.length > 0 && (
+                                        <Alert tipo="error" texto={errorDisponibilidad} className="mt-4" />
+                                    )}
+                                </section>
+
                                 {error && <Alert tipo="error" texto={error} className="mt-5" />}
                                 {promocionesNoAplicables.length > 0 && (
                                     <Alert
@@ -272,7 +393,7 @@ function Carrito() {
                                     loading={cargando}
                                     loadingText="Procesando..."
                                     icon={ShoppingBag}
-                                    disabled={promocionesNoAplicables.length > 0}
+                                    disabled={promocionesNoAplicables.length > 0 || !horarioElegido || cargandoDisponibilidad}
                                     className="mt-6"
                                 >
                                     Confirmar compra

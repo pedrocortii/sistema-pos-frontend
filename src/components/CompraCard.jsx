@@ -6,6 +6,7 @@ import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
 import { Alert } from "./ui/Alert";
 import { DescargarComprobante } from "./DescargarComprobante";
+import { RetiroProgramado } from "./RetiroProgramado";
 import { formatoMonedaARS } from "../utils/moneda";
 import { obtenerProducto } from "../api/productos";
 import { obtenerVenta } from "../api/ventas";
@@ -135,6 +136,7 @@ export function CompraCard({ compra }) {
                             </span>
                         )}
                     </div>
+                    <RetiroProgramado venta={compra} compacto className="text-ink/70" />
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-line">
