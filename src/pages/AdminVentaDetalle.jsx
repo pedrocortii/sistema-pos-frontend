@@ -9,6 +9,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Alert } from "../components/ui/Alert";
 import { DescargarComprobante } from "../components/DescargarComprobante";
+import { RetiroProgramado } from "../components/RetiroProgramado";
 import { usePeticion } from "../hooks/usePeticion";
 import { convertirACentavos, formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
@@ -111,6 +112,7 @@ function AdminVentaDetalle() {
 
                     <Card>
                         <CardTitle className="mb-4">Cliente</CardTitle>
+                        <RetiroProgramado venta={venta} className="mb-4 border-b border-line pb-4" />
                         <div className="space-y-2 text-sm">
                             <p className="font-medium">
                                 {venta.clienteNombre

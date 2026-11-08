@@ -10,6 +10,7 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { DescargarComprobante } from "../components/DescargarComprobante";
+import { RetiroProgramado } from "../components/RetiroProgramado";
 import { Alert } from "../components/ui/Alert";
 import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
@@ -218,6 +219,8 @@ function ReimprimirComprobante() {
                             )}
                         </div>
                     </div>
+
+                    <RetiroProgramado venta={venta} className="mt-5 border-t border-dashed border-line pt-4 font-mono-ticket" />
 
                     <div className="mt-6 border-t border-dashed border-line pt-4">
                         <p className="font-mono-ticket text-xs text-ink/50 mb-3">

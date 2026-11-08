@@ -18,6 +18,7 @@ import AdminVentaDetalle from "./pages/AdminVentaDetalle";
 import AdminVentaRapida from "./pages/AdminVentaRapida";
 import AdminPromociones from "./pages/AdminPromociones";
 import AdminClasificacion from "./pages/AdminClasificacion";
+import AdminConfiguracionRetiro from "./pages/AdminConfiguracionRetiro";
 import { useAuthStore } from "./store/authStore";
 
 function RedireccionRaiz() {
@@ -76,6 +77,7 @@ function App() {
                         />
                         <Route path="promociones" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminPromociones /></RutaProtegida>} />
                         <Route path="clasificacion" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminClasificacion /></RutaProtegida>} />
+                        <Route path="retiros" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminConfiguracionRetiro /></RutaProtegida>} />
                         <Route
                             path="stock"
                             element={<AdminStock />}
