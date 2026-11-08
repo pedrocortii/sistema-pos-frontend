@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, LogIn, LogOut, FileText, AlertCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useCarritoStore } from "../store/carritoStore";
@@ -11,6 +11,10 @@ function EncabezadoCliente() {
     const ultimoComprobante = useCarritoStore(function (estado) { return estado.ultimoComprobante; });
     const cantidadCarrito = items.reduce(function (total, item) { return total + item.cantidad; }, 0);
     const navegar = useNavigate();
+    const ubicacion = useLocation();
+    const estadoRetorno = cantidadCarrito > 0
+        ? { returnTo: "/carrito" }
+        : { returnTo: ubicacion.pathname };
 
     function manejarCerrarSesion() {
         cerrarSesion();
@@ -84,11 +88,11 @@ function EncabezadoCliente() {
                         </button>
                     ) : (
                         <div className="flex items-center gap-1">
-                            <Link to="/login-cliente" className="flex items-center gap-2 whitespace-nowrap rounded px-3 py-2 text-paper/85 no-underline transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                            <Link to="/login-cliente" state={estadoRetorno} className="flex items-center gap-2 whitespace-nowrap rounded px-3 py-2 text-paper/85 no-underline transition-colors hover:bg-paper/10 hover:text-paper focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                                 <LogIn size={18} aria-hidden="true" />
                                 Iniciar sesión
                             </Link>
-                            <Link to="/registro" className="flex items-center gap-2 whitespace-nowrap rounded bg-amber px-3 py-2 text-ink no-underline transition-colors hover:bg-amber/80 focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
+                            <Link to="/registro" state={estadoRetorno} className="flex items-center gap-2 whitespace-nowrap rounded bg-amber px-3 py-2 text-ink no-underline transition-colors hover:bg-amber/80 focus-visible:outline-2 focus-visible:outline-paper focus-visible:outline-offset-2">
                                 <LogIn size={18} aria-hidden="true" />
                                 Crear cuenta
                             </Link>

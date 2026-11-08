@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { checkoutSchema } from "../validations/checkoutSchema";
 import { crearVenta } from "../api/ventas";
+import { obtenerProducto } from "../api/productos";
 import { consultarDisponibilidadRetiro } from "../api/retiros";
 import { useCarritoStore } from "../store/carritoStore";
 import { useAuthStore } from "../store/authStore";
@@ -19,6 +20,25 @@ import { Alert } from "../components/ui/Alert";
 import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
 import { formatearFechaRetiro } from "../utils/retiro";
+import { formatoMonedaARS } from "../utils/moneda";
+
+function describirCambiosCarrito(cambios) {
+    const mensajes = [];
+    if (cambios.eliminados.length > 0) {
+        mensajes.push("Se quitaron productos que ya no están disponibles: " + cambios.eliminados.join(", ") + ".");
+    }
+    if (cambios.cantidadesAjustadas.length > 0) {
+        mensajes.push("Se ajustaron cantidades por falta de stock: " + cambios.cantidadesAjustadas.map(function (item) {
+            return `${item.nombre} (${item.anterior} → ${item.actual})`;
+        }).join(", ") + ".");
+    }
+    if (cambios.preciosActualizados.length > 0) {
+        mensajes.push("Se actualizaron precios según el catálogo actual: " + cambios.preciosActualizados.map(function (item) {
+            return `${item.nombre} (${formatoMonedaARS.format(item.anterior)} → ${formatoMonedaARS.format(item.actual)})`;
+        }).join(", ") + ".");
+    }
+    return mensajes;
+}
 
 function obtenerErrorCheckout(error) {
     const datos = error.response?.data;
@@ -37,6 +57,7 @@ function Carrito() {
     const cambiarCantidad = useCarritoStore(function (estado) { return estado.cambiarCantidad; });
     const quitarProducto = useCarritoStore(function (estado) { return estado.quitarProducto; });
     const vaciarCarrito = useCarritoStore(function (estado) { return estado.vaciarCarrito; });
+    const reconciliarProductos = useCarritoStore(function (estado) { return estado.reconciliarProductos; });
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const obtenerTotal = useCarritoStore(function (estado) { return estado.obtenerTotal; });
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
@@ -46,6 +67,11 @@ function Carrito() {
     const [horaRetiro, setHoraRetiro] = useState("");
     const [cargandoDisponibilidad, setCargandoDisponibilidad] = useState(true);
     const [errorDisponibilidad, setErrorDisponibilidad] = useState(null);
+    const [validacionCargando, setValidacionCargando] = useState(false);
+    const [validacionLista, setValidacionLista] = useState(false);
+    const [errorValidacion, setErrorValidacion] = useState("");
+    const [avisosCarrito, setAvisosCarrito] = useState([]);
+    const ultimaFirmaValidada = useRef("");
     const dniCliente = usuario?.dni ?? usuario?.documento ?? usuario?.DNI ?? usuario?.clienteDni ?? "";
     const promocionesNoAplicables = items.filter(function (item) { return item.promocionNoAplicable; });
 
@@ -58,6 +84,73 @@ function Carrito() {
     const horarioElegido = horariosDisponibles.find(function (horario) {
         return horario.horaInicio === horaRetiro;
     });
+    const firmaCarrito = items.map(function (item) {
+        return `${item.productoId}:${item.cantidad}`;
+    }).join("|");
+
+    const sincronizarCarrito = useCallback(async function () {
+        const itemsActuales = useCarritoStore.getState().items;
+        if (itemsActuales.length === 0) {
+            setValidacionLista(true);
+            setErrorValidacion("");
+            return { ok: true, huboCambios: false };
+        }
+
+        setValidacionCargando(true);
+        setErrorValidacion("");
+        setValidacionLista(false);
+
+        const resultados = await Promise.allSettled(itemsActuales.map(function (item) {
+            return obtenerProducto(item.productoId);
+        }));
+        const productos = [];
+        const noDisponibles = [];
+        const errores = [];
+
+        resultados.forEach(function (resultado, indice) {
+            if (resultado.status === "fulfilled") {
+                productos.push(resultado.value);
+            } else if (resultado.reason.response?.status === 404) {
+                noDisponibles.push(itemsActuales[indice].productoId);
+            } else {
+                errores.push(resultado.reason);
+            }
+        });
+
+        if (errores.length > 0) {
+            setErrorValidacion("No se pudo verificar el stock y el precio de todos los productos. Reintentá antes de confirmar la compra.");
+            setValidacionCargando(false);
+            return { ok: false, huboCambios: false };
+        }
+
+        const cambios = reconciliarProductos(productos, noDisponibles);
+        const mensajes = describirCambiosCarrito(cambios);
+        if (mensajes.length > 0) setAvisosCarrito(mensajes);
+        setValidacionLista(true);
+        setValidacionCargando(false);
+        return {
+            ok: true,
+            huboCambios: mensajes.length > 0,
+            cambios: cambios
+        };
+    }, [reconciliarProductos]);
+
+    useEffect(function () {
+        if (firmaCarrito.length === 0) {
+            ultimaFirmaValidada.current = "";
+            return undefined;
+        }
+        if (ultimaFirmaValidada.current === firmaCarrito) return undefined;
+
+        ultimaFirmaValidada.current = firmaCarrito;
+        sincronizarCarrito().catch(function () {
+            ultimaFirmaValidada.current = "";
+            setErrorValidacion("No se pudo verificar el carrito. Reintentá antes de confirmar la compra.");
+            setValidacionCargando(false);
+            setValidacionLista(false);
+        });
+        return undefined;
+    }, [firmaCarrito, sincronizarCarrito]);
 
     useEffect(function () {
         let activo = true;
@@ -102,12 +195,16 @@ function Carrito() {
     }, [usuario, dniCliente, reset]);
 
     async function manejarConfirmarCompra(datosFactura) {
+        const validacion = await sincronizarCarrito();
+        if (!validacion.ok) return;
+        if (validacion.huboCambios) return;
+
         if (!fechaRetiro || !horarioElegido) {
             setErrorDisponibilidad("Seleccioná una fecha y un horario de retiro disponibles.");
             return;
         }
 
-        const itemsParaEnviar = items.map(function (item) {
+        const itemsParaEnviar = useCarritoStore.getState().items.map(function (item) {
             return { productoId: item.productoId, cantidad: item.cantidad };
         });
 
@@ -147,6 +244,7 @@ function Carrito() {
             vaciarCarrito();
             navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
         } catch {
+            await sincronizarCarrito();
             try {
                 const disponibilidad = await consultarDisponibilidadRetiro();
                 setFechasDisponibles(disponibilidad.fechas || []);
@@ -258,6 +356,27 @@ function Carrito() {
                                 ${obtenerTotal().toFixed(2)}
                             </span>
                         </div>
+
+                        {validacionCargando && (
+                            <p role="status" className="border-t border-line px-5 py-3 text-sm text-ink/60">
+                                Verificando disponibilidad y precios actuales...
+                            </p>
+                        )}
+                        {errorValidacion && (
+                            <Alert tipo="error" texto={errorValidacion} className="m-5" />
+                        )}
+                        {avisosCarrito.length > 0 && (
+                            <Alert tipo="warning" titulo="Revisá los cambios en tu carrito" className="m-5">
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {avisosCarrito.map(function (mensaje) {
+                        return <li key={mensaje}>{mensaje}</li>;
+                                    })}
+                                </ul>
+                                {items.length > 0 && (
+                                    <p className="mt-2">Revisá el total actualizado y confirmá nuevamente.</p>
+                                )}
+                            </Alert>
+                        )}
 
                         <section className="border-t border-line p-5 sm:p-6">
                             <p className="font-mono-ticket text-xs text-forest">
@@ -379,6 +498,20 @@ function Carrito() {
                                 </section>
 
                                 {error && <Alert tipo="error" texto={error} className="mt-5" />}
+                                {errorValidacion && (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        disabled={validacionCargando}
+                                        onClick={function () {
+                                            ultimaFirmaValidada.current = "";
+                                            sincronizarCarrito();
+                                        }}
+                                        className="mt-4"
+                                    >
+                                        Reintentar validación
+                                    </Button>
+                                )}
                                 {promocionesNoAplicables.length > 0 && (
                                     <Alert
                                         tipo="error"
@@ -393,7 +526,14 @@ function Carrito() {
                                     loading={cargando}
                                     loadingText="Procesando..."
                                     icon={ShoppingBag}
-                                    disabled={promocionesNoAplicables.length > 0 || !horarioElegido || cargandoDisponibilidad}
+                                    disabled={
+                                        promocionesNoAplicables.length > 0 ||
+                                        !horarioElegido ||
+                                        cargandoDisponibilidad ||
+                                        validacionCargando ||
+                                        !validacionLista ||
+                                        Boolean(errorValidacion)
+                                    }
                                     className="mt-6"
                                 >
                                     Confirmar compra
