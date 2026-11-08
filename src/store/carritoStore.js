@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { combinarItemsDuplicados, reconciliarItemsCarrito } from "../utils/carrito.js";
 
 export const useCarritoStore = create(persist(function (set, get) {
     return {
@@ -100,6 +101,16 @@ export const useCarritoStore = create(persist(function (set, get) {
             set({ items: [] });
         },
 
+        reconciliarProductos: function (productos, idsNoDisponibles) {
+            const resultado = reconciliarItemsCarrito(
+                get().items,
+                productos,
+                idsNoDisponibles
+            );
+            set({ items: resultado.items });
+            return resultado;
+        },
+
         obtenerTotal: function () {
             const totalCentavos = get().items.reduce(function (acumulado, item) {
                 return acumulado + Math.round(item.precio * 100) * item.cantidad;
@@ -115,5 +126,12 @@ export const useCarritoStore = create(persist(function (set, get) {
     };
 }, {
     name: "carrito",
-    version: 1
+    version: 1,
+    merge: function (persistido, actual) {
+        return {
+            ...actual,
+            ...persistido,
+            items: combinarItemsDuplicados(persistido?.items)
+        };
+    }
 }));

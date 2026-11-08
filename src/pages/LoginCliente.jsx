@@ -14,7 +14,7 @@ function LoginCliente() {
         >
             <p className="text-center text-sm text-ink/60">
                 Todavía no tenés cuenta?{" "}
-                <Link to="/registro" className="text-forest underline">
+                <Link to="/registro" state={{ returnTo: ubicacion.state?.returnTo }} className="text-forest underline">
                     Crear cuenta
                 </Link>
             </p>
