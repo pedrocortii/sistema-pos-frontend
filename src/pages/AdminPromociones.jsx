@@ -13,7 +13,7 @@ import { formatoMonedaARS } from "../utils/moneda";
 function fechaInput(valor) { return valor ? new Date(valor).toISOString().slice(0, 10) : ""; }
 function estado(promocion) { const ahora = new Date(); if (!promocion.activo) return "INACTIVO"; if (new Date(promocion.fechaInicio) > ahora) return "FUTURA"; if (new Date(promocion.fechaFin) < ahora) return "VENCIDA"; return "ACTIVA"; }
 function alcanceInicial(promocion) { const productos = promocion?.productos?.length > 0; const categorias = promocion?.categorias?.length > 0; if (productos && categorias) return "AMBOS"; if (categorias) return "CATEGORIAS"; return "PRODUCTOS"; }
-function formularioInicial(promocion) { return promocion ? { titulo: promocion.titulo, descripcion: promocion.descripcion || "", tipoDescuento: promocion.tipoDescuento, valorDescuento: String(promocion.valorDescuento), fechaInicio: fechaInput(promocion.fechaInicio), fechaFin: fechaInput(promocion.fechaFin), activo: promocion.activo, alcance: alcanceInicial(promocion), productoIds: (promocion.productos || []).map((item) => item.producto.id), categorias: (promocion.categorias || []).map((item) => item.categoria) } : { titulo: "", descripcion: "", tipoDescuento: "PORCENTAJE", valorDescuento: "", fechaInicio: "", fechaFin: "", activo: true, alcance: "PRODUCTOS", productoIds: [], categorias: [] }; }
+function formularioInicial(promocion) { return promocion ? { titulo: promocion.titulo, descripcion: promocion.descripcion || "", tipoDescuento: promocion.tipoDescuento, valorDescuento: promocion.valorDescuento == null ? "" : String(promocion.valorDescuento), precioCombo: promocion.precioCombo == null ? "" : String(promocion.precioCombo), fechaInicio: fechaInput(promocion.fechaInicio), fechaFin: fechaInput(promocion.fechaFin), activo: promocion.activo, alcance: promocion.tipoDescuento === "COMBO" ? "PRODUCTOS" : alcanceInicial(promocion), productoIds: (promocion.productos || []).map((item) => item.producto.id), categorias: promocion.tipoDescuento === "COMBO" ? [] : (promocion.categorias || []).map((item) => item.categoria) } : { titulo: "", descripcion: "", tipoDescuento: "PORCENTAJE", valorDescuento: "", precioCombo: "", fechaInicio: "", fechaFin: "", activo: true, alcance: "PRODUCTOS", productoIds: [], categorias: [] }; }
 
 function AdminPromociones() {
     const [promociones, setPromociones] = useState([]);
@@ -79,6 +79,16 @@ function AdminPromociones() {
         setError("");
     }
     function cambiar(campo, valor) { setFormulario((actual) => ({ ...actual, [campo]: valor })); }
+    function cambiarTipoDescuento(valor) {
+        setFormulario((actual) => ({
+            ...actual,
+            tipoDescuento: valor,
+            valorDescuento: ["DOS_POR_UNO", "COMBO"].includes(valor) ? "" : actual.valorDescuento,
+            precioCombo: valor === "COMBO" ? actual.precioCombo : "",
+            alcance: valor === "COMBO" ? "PRODUCTOS" : actual.alcance,
+            categorias: valor === "COMBO" ? [] : actual.categorias
+        }));
+    }
     function cambiarAlcance(valor) { setFormulario((actual) => ({ ...actual, alcance: valor })); }
     function alternar(campo, valor) { setFormulario((actual) => ({ ...actual, [campo]: actual[campo].includes(valor) ? actual[campo].filter((item) => item !== valor) : [...actual[campo], valor] })); }
     async function guardar(evento) {
@@ -87,15 +97,26 @@ function AdminPromociones() {
             setError("La fecha Hasta no puede ser anterior a la fecha Desde.");
             return;
         }
+        if (formulario.tipoDescuento === "COMBO") {
+            if (formulario.productoIds.length < 2) {
+                setError("Seleccioná al menos dos productos para el combo.");
+                return;
+            }
+            if (!Number.isFinite(Number(formulario.precioCombo)) || Number(formulario.precioCombo) <= 0) {
+                setError("Ingresá un precio total de combo mayor a cero.");
+                return;
+            }
+        }
         setGuardando(true);
         setError("");
         const datos = {
             ...formulario,
-            valorDescuento: Number(formulario.valorDescuento),
+            valorDescuento: ["DOS_POR_UNO", "COMBO"].includes(formulario.tipoDescuento) ? null : Number(formulario.valorDescuento),
+            precioCombo: formulario.tipoDescuento === "COMBO" ? Number(formulario.precioCombo) : null,
             fechaInicio: new Date(formulario.fechaInicio + "T00:00:00").toISOString(),
             fechaFin: new Date(formulario.fechaFin + "T23:59:59.999").toISOString(),
             productoIds: formulario.alcance === "CATEGORIAS" ? [] : formulario.productoIds,
-            categorias: formulario.alcance === "PRODUCTOS" ? [] : formulario.categorias
+            categorias: formulario.tipoDescuento === "COMBO" || formulario.alcance === "PRODUCTOS" ? [] : formulario.categorias
         };
         delete datos.alcance;
         try {
@@ -110,7 +131,7 @@ function AdminPromociones() {
         }
     }
     async function borrar(promocion) { if (!window.confirm(`¿Eliminar “${promocion.titulo}”?`)) return; try { await eliminarPromocion(promocion.id); await cargar(); } catch (errorPeticion) { setError(errorPeticion.response?.data?.mensaje || "No se pudo eliminar la promocion."); } }
-    const opciones = [["PORCENTAJE", "Porcentaje", "Ej.: 20% de descuento"], ["IMPORTE", "Importe fijo", "Ej.: $1.000 de descuento"]];
+    const opciones = [["PORCENTAJE", "Porcentaje", "Ej.: 20% de descuento"], ["IMPORTE", "Importe fijo", "Ej.: $1.000 de descuento"], ["DOS_POR_UNO", "2x1", "Llevás 2 unidades y pagás 1"], ["COMBO", "Combo", "Productos seleccionados por un precio total"]];
     const alcances = [["PRODUCTOS", "Productos específicos"], ["CATEGORIAS", "Categorías completas"], ["AMBOS", "Productos y categorías"]];
     return (
         <section>
@@ -146,7 +167,7 @@ function AdminPromociones() {
                                     <strong>{promocion.titulo}</strong>
                                     {promocion.descripcion && <p className="text-xs text-ink/60">{promocion.descripcion}</p>}
                                 </TableCell>
-                                <TableCell>{promocion.tipoDescuento === "PORCENTAJE" ? `${promocion.valorDescuento}%` : formatoMonedaARS.format(Number(promocion.valorDescuento))}</TableCell>
+                                <TableCell>{promocion.tipoDescuento === "DOS_POR_UNO" ? "2x1" : promocion.tipoDescuento === "COMBO" ? `Combo · ${formatoMonedaARS.format(Number(promocion.precioCombo))}` : promocion.tipoDescuento === "PORCENTAJE" ? `${promocion.valorDescuento}%` : formatoMonedaARS.format(Number(promocion.valorDescuento))}</TableCell>
                                 <TableCell className="text-xs">
                                     {new Date(promocion.fechaInicio).toLocaleString("es-AR")}
                                     <br />
@@ -198,10 +219,10 @@ function AdminPromociones() {
 
                         <fieldset>
                             <legend className="mb-2 text-xs text-ink/60">Tipo de beneficio</legend>
-                            <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                                 {opciones.map(([valor, titulo, ayuda]) => (
                                     <label key={valor} className={`cursor-pointer border p-3 ${formulario.tipoDescuento === valor ? "border-forest bg-forest/10" : "border-line"}`}>
-                                        <input className="sr-only" type="radio" name="tipoDescuento" checked={formulario.tipoDescuento === valor} onChange={() => cambiar("tipoDescuento", valor)} />
+                                        <input className="sr-only" type="radio" name="tipoDescuento" checked={formulario.tipoDescuento === valor} onChange={() => cambiarTipoDescuento(valor)} />
                                         <span className="block font-medium">{titulo}</span>
                                         <span className="text-xs text-ink/60">{ayuda}</span>
                                     </label>
@@ -210,22 +231,46 @@ function AdminPromociones() {
                         </fieldset>
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <Input
-                                containerClassName="sm:col-span-2"
-                                label={formulario.tipoDescuento === "PORCENTAJE" ? "Porcentaje de descuento" : "Importe de descuento"}
-                                type="number"
-                                min="0.01"
-                                max={formulario.tipoDescuento === "PORCENTAJE" ? "100" : undefined}
-                                step="0.01"
-                                required
-                                value={formulario.valorDescuento}
-                                onChange={(event) => cambiar("valorDescuento", event.target.value)}
-                            />
+                            {formulario.tipoDescuento === "COMBO" && (
+                                <Input
+                                    containerClassName="sm:col-span-2"
+                                    label="Precio total del combo"
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    required
+                                    value={formulario.precioCombo}
+                                    onChange={(event) => cambiar("precioCombo", event.target.value)}
+                                />
+                            )}
+                            {!["DOS_POR_UNO", "COMBO"].includes(formulario.tipoDescuento) && (
+                                <Input
+                                    containerClassName="sm:col-span-2"
+                                    label={formulario.tipoDescuento === "PORCENTAJE" ? "Porcentaje de descuento" : "Importe de descuento"}
+                                    type="number"
+                                    min="0.01"
+                                    max={formulario.tipoDescuento === "PORCENTAJE" ? "100" : undefined}
+                                    step="0.01"
+                                    required
+                                    value={formulario.valorDescuento}
+                                    onChange={(event) => cambiar("valorDescuento", event.target.value)}
+                                />
+                            )}
+                            {formulario.tipoDescuento === "DOS_POR_UNO" && (
+                                <p className="sm:col-span-2 border border-forest/20 bg-forest/5 p-3 text-sm text-ink/70">
+                                    Se bonifica una unidad cada dos unidades del mismo producto alcanzado. El descuento se calcula según la cantidad de cada producto.
+                                </p>
+                            )}
+                            {formulario.tipoDescuento === "COMBO" && (
+                                <p className="sm:col-span-2 border border-forest/20 bg-forest/5 p-3 text-sm text-ink/70">
+                                    Cada combo incluye una unidad de cada producto seleccionado. Se aplica por conjuntos completos; las unidades sobrantes se cobran a precio normal y no se acumulan otras promociones sobre los productos incluidos en el combo.
+                                </p>
+                            )}
                             <Input label="Desde" type="date" required value={formulario.fechaInicio} onChange={(event) => cambiar("fechaInicio", event.target.value)} />
                             <Input label="Hasta" type="date" min={formulario.fechaInicio || undefined} required value={formulario.fechaFin} onChange={(event) => cambiar("fechaFin", event.target.value)} />
                         </div>
 
-                        <fieldset>
+                        {formulario.tipoDescuento !== "COMBO" && <fieldset>
                             <legend className="mb-2 text-xs text-ink/60">¿Dónde se aplica?</legend>
                             <div className="grid gap-2 sm:grid-cols-3">
                                 {alcances.map(([valor, titulo]) => (
@@ -235,12 +280,14 @@ function AdminPromociones() {
                                     </label>
                                 ))}
                             </div>
-                        </fieldset>
+                        </fieldset>}
 
                         {formulario.alcance !== "CATEGORIAS" && (
                             <fieldset>
                                 <legend className="mb-2 text-xs text-ink/60">
-                                    Seleccioná los productos ({formulario.productoIds.length} seleccionados)
+                                    {formulario.tipoDescuento === "COMBO"
+                                        ? `Seleccioná al menos dos productos para cada combo (${formulario.productoIds.length} seleccionados)`
+                                        : `Seleccioná los productos (${formulario.productoIds.length} seleccionados)`}
                                 </legend>
                                 <Input
                                     type="search"
@@ -263,7 +310,7 @@ function AdminPromociones() {
                             </fieldset>
                         )}
 
-                        {formulario.alcance !== "PRODUCTOS" && (
+                        {formulario.tipoDescuento !== "COMBO" && formulario.alcance !== "PRODUCTOS" && (
                             <fieldset>
                                 <legend className="mb-2 text-xs text-ink/60">
                                     Seleccioná las categorías ({formulario.categorias.length} seleccionadas)

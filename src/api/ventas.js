@@ -28,6 +28,11 @@ export async function cancelarVentaPublica(id) {
     await publicHttp.patch("/ventas/" + id + "/cancelar", {});
 }
 
+export async function cancelarCompraCliente(id) {
+    const respuesta = await http.patch("/ventas/" + encodeURIComponent(id) + "/cancelar-cliente", {});
+    return respuesta.data.venta;
+}
+
 export async function listarVentas(filtros) {
     const respuesta = await http.get("/ventas", { params: filtros });
     return respuesta.data;
@@ -45,8 +50,8 @@ export async function renombrarVenta(id, nombrePersonalizado) {
     return respuesta.data.venta;
 }
 
-export async function descargarComprobante(id, codigoComprobante) {
-    const respuesta = await http.get("/ventas/" + encodeURIComponent(id) + "/comprobante.pdf", {
+export async function descargarComprobante(codigoComprobante) {
+    const respuesta = await publicHttp.get("/ventas/comprobante/" + encodeURIComponent(codigoComprobante) + "/pdf", {
         responseType: "blob"
     });
     const archivo = new Blob([respuesta.data], { type: "application/pdf" });
