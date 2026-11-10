@@ -39,6 +39,7 @@ function ReimprimirComprobante() {
     const { codigo } = useParams();
     const [qrGenerado, setQrGenerado] = useState({ fuente: "", url: "" });
     const [ventaLocal, setVentaLocal] = useState(null);
+    const [errorVerificacionPago, setErrorVerificacionPago] = useState("");
     const setUltimoComprobante = useCarritoStore(function (estado) { return estado.setUltimoComprobante; });
     const limpiarUltimoComprobante = useCarritoStore(function (estado) { return estado.limpiarUltimoComprobante; });
     const {
@@ -78,11 +79,18 @@ function ReimprimirComprobante() {
     }, [codigo, cargarComprobante, setUltimoComprobante, limpiarUltimoComprobante]);
 
     useEffect(function () {
-        if (!venta || ["CANCELADA", "RETIRADA"].includes(venta.estado)) return undefined;
+        if (venta?.estado !== "PENDIENTE" || !venta.pagoQrData) return undefined;
 
-        const interval = window.setInterval(function () {
-            obtenerComprobante(codigo).then(function (v) {
+        let activo = true;
+        let temporizador;
+        async function verificarPago() {
+            try {
+                const v = await obtenerComprobante(codigo);
+                if (!activo) return;
                 setVentaLocal(v);
+                setErrorVerificacionPago(v.verificacionPagoPendiente
+                    ? "No pudimos consultar a Mercado Pago en este momento. No vuelvas a pagar; seguiremos verificando automáticamente."
+                    : "");
                 if (!["CANCELADA", "RETIRADA"].includes(v.estado)) {
                     setUltimoComprobante({
                         codigo: v.codigoComprobante,
@@ -92,13 +100,21 @@ function ReimprimirComprobante() {
                 } else {
                     limpiarUltimoComprobante();
                 }
-            }).catch(function () {
-                // La petición siguiente se hará nuevamente en el próximo ciclo.
-            });
-        }, 5000);
+            } catch {
+                if (activo) {
+                    setErrorVerificacionPago("No pudimos confirmar el estado del pago. No vuelvas a pagar; intentaremos consultarlo nuevamente.");
+                }
+            } finally {
+                if (activo) temporizador = window.setTimeout(verificarPago, 10000);
+            }
+        }
 
-        return function () { window.clearInterval(interval); };
-    }, [codigo, venta, setUltimoComprobante, limpiarUltimoComprobante]);
+        temporizador = window.setTimeout(verificarPago, 10000);
+        return function () {
+            activo = false;
+            window.clearTimeout(temporizador);
+        };
+    }, [codigo, venta?.estado, venta?.pagoQrData, setUltimoComprobante, limpiarUltimoComprobante]);
 
     useEffect(function () {
         let activo = true;
@@ -199,6 +215,12 @@ function ReimprimirComprobante() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-y-3 gap-x-6 mt-6 font-mono-ticket text-sm">
+                        {venta.nombrePersonalizado && (
+                            <div className="col-span-2">
+                                <p className="text-xs text-ink/50">Nombre de la compra</p>
+                                <p className="text-ink font-bold break-words">{venta.nombrePersonalizado}</p>
+                            </div>
+                        )}
                         <div>
                             <p className="text-xs text-ink/50">Código</p>
                             <p className="text-ink font-bold">{venta.codigoComprobante}</p>
@@ -251,7 +273,7 @@ function ReimprimirComprobante() {
                         </span>
                     </div>
 
-                    {["COBRADA", "EN_PREPARACION", "LISTA_PARA_RETIRAR", "RETIRADA"].includes(venta.estado) && (
+                    {["COBRADA", "EN_PREPARACION", "LISTA_PARA_RETIRAR", "RETIRADA", "REEMBOLSADA"].includes(venta.estado) && (
                         <DescargarComprobante
                             ventaId={venta.id}
                             codigoComprobante={venta.codigoComprobante}
@@ -281,6 +303,28 @@ function ReimprimirComprobante() {
                                 La orden expira en 15 minutos.
                             </p>
                         </div>
+                    )}
+
+                    {errorVerificacionPago && (
+                        <Alert tipo="warning" texto={errorVerificacionPago} className="mt-4" />
+                    )}
+
+                    {venta.estado === "CANCELADA" && ["expired", "canceled"].includes(venta.estadoPago) && (
+                        <Alert
+                            tipo="warning"
+                            titulo={venta.estadoPago === "expired" ? "El QR venció" : "El pago fue cancelado"}
+                            texto="La compra quedó cancelada y el importe no fue confirmado. Si Mercado Pago te debitó el pago, conservá este comprobante y contactá al comercio antes de volver a pagar."
+                            className="mt-6"
+                        />
+                    )}
+
+                    {venta.estado === "REEMBOLSADA" && (
+                        <Alert
+                            tipo="info"
+                            titulo="Pago reembolsado"
+                            texto="Mercado Pago informó que este pago fue reembolsado. Consultá el plazo de acreditación con tu proveedor de pago."
+                            className="mt-6"
+                        />
                     )}
 
                     {venta.estado === "LISTA_PARA_RETIRAR" && (

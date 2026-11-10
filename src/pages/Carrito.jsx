@@ -180,7 +180,8 @@ function Carrito() {
             apellido: usuario?.apellido || "",
             dni: dniCliente,
             email: usuario?.email || "",
-            confirmarEmail: usuario?.email || ""
+            confirmarEmail: usuario?.email || "",
+            nombrePersonalizado: ""
         }
     });
 
@@ -190,7 +191,8 @@ function Carrito() {
             apellido: usuario?.apellido || "",
             dni: dniCliente,
             email: usuario?.email || "",
-            confirmarEmail: usuario?.email || ""
+            confirmarEmail: usuario?.email || "",
+            nombrePersonalizado: ""
         });
     }, [usuario, dniCliente, reset]);
 
@@ -208,6 +210,8 @@ function Carrito() {
             return { productoId: item.productoId, cantidad: item.cantidad };
         });
 
+        const nombrePersonalizado = (datosFactura.nombrePersonalizado || "").trim();
+
         const payload = {
             items: itemsParaEnviar,
             cliente: {
@@ -217,6 +221,7 @@ function Carrito() {
                 email: datosFactura.email.trim(),
                 confirmarEmail: datosFactura.confirmarEmail.trim()
             },
+            nombrePersonalizado: nombrePersonalizado || undefined,
             metodoPago: "MercadoPago",
             retiro: {
                 fecha: fechaRetiro,
@@ -428,6 +433,18 @@ function Carrito() {
                                             {...register("confirmarEmail")}
                                             error={errors.confirmarEmail}
                                         />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <Input
+                                            label="Nombre para tu compra"
+                                            variant="line"
+                                            placeholder="Ej.: Compra semanal"
+                                            {...register("nombrePersonalizado")}
+                                            error={errors.nombrePersonalizado}
+                                        />
+                                        <p className="mt-1 font-mono-ticket text-[11px] text-ink/60">
+                                            Opcional. Te ayuda a identificar esta compra en tu historial.
+                                        </p>
                                     </div>
                                 </div>
 

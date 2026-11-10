@@ -20,6 +20,7 @@ function resolverVariante(estado, variantProp) {
     if (["CANCELADA", "RECHAZADA", "FALLIDA", "STOCK BAJO", "SIN STOCK", "INACTIVO"].includes(limpio)) {
         return "danger";
     }
+    if (limpio === "REEMBOLSADA") return "info";
     return "neutral";
 }
 
@@ -27,7 +28,8 @@ function textoEstado(valor) {
     if (!valor) return valor;
     const nombres = {
         EN_PREPARACION: "En preparación",
-        LISTA_PARA_RETIRAR: "Lista para retirar"
+        LISTA_PARA_RETIRAR: "Lista para retirar",
+        REEMBOLSADA: "Reembolsada"
     };
     if (nombres[valor]) return nombres[valor];
     return String(valor).toLocaleLowerCase("es-AR").replace(/(^|\s)\S/g, function (letra) {
