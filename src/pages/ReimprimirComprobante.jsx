@@ -254,6 +254,19 @@ function ReimprimirComprobante() {
                                     <div key={detalle.id} className="flex items-center justify-between font-mono-ticket text-sm">
                                         <span className="text-ink">
                                             {detalle.cantidad} x {detalle.producto ? detalle.producto.nombre : "Producto"}
+                                            {detalle.promocionTitulo && (
+                                                <span className="block text-xs text-forest">
+                                                    {detalle.promocionTitulo}
+                                                    {detalle.combosAplicados > 0
+                                                        ? ` · ${detalle.combosAplicados} ${detalle.combosAplicados === 1 ? "combo aplicado" : "combos aplicados"}`
+                                                        : detalle.unidadesBonificadas > 0
+                                                            ? ` · ${detalle.unidadesBonificadas} ${detalle.unidadesBonificadas === 1 ? "unidad bonificada" : "unidades bonificadas"}`
+                                                            : ""}
+                                                    {Number(detalle.descuentoTotal) > 0
+                                                        ? ` · ahorro $${Number(detalle.descuentoTotal).toFixed(2)}`
+                                                        : ""}
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="text-ink font-medium">
                                             ${Number(detalle.subtotal).toFixed(2)}
@@ -263,6 +276,15 @@ function ReimprimirComprobante() {
                             })}
                         </div>
                     </div>
+
+                    {Number(venta.detalles?.reduce((total, detalle) => total + Number(detalle.descuentoTotal || 0), 0)) > 0 && (
+                        <div className="flex items-center justify-between mt-4 text-sm">
+                            <span className="font-mono-ticket text-ink/60">Descuento aplicado</span>
+                            <span className="font-mono-ticket text-forest">
+                                -${Number(venta.detalles.reduce((total, detalle) => total + Number(detalle.descuentoTotal || 0), 0)).toFixed(2)}
+                            </span>
+                        </div>
+                    )}
 
                     <div className="flex items-center justify-between mt-6 border-t border-line pt-4">
                         <span className="font-mono-ticket text-sm text-ink/60">
@@ -275,7 +297,6 @@ function ReimprimirComprobante() {
 
                     {["COBRADA", "EN_PREPARACION", "LISTA_PARA_RETIRAR", "RETIRADA", "REEMBOLSADA"].includes(venta.estado) && (
                         <DescargarComprobante
-                            ventaId={venta.id}
                             codigoComprobante={venta.codigoComprobante}
                             className="mt-5 flex justify-center"
                         />

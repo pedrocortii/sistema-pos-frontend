@@ -104,7 +104,6 @@ function AdminVentaDetalle() {
                             Total: ${Number(venta.total).toFixed(2)}
                         </div>
                         <DescargarComprobante
-                            ventaId={venta.id}
                             codigoComprobante={venta.codigoComprobante}
                             className="mt-4"
                         />

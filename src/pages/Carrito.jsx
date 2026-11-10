@@ -21,6 +21,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { usePeticion } from "../hooks/usePeticion";
 import { formatearFechaRetiro } from "../utils/retiro";
 import { formatoMonedaARS } from "../utils/moneda";
+import { calcularPromocionesCarrito } from "../utils/carrito";
 
 function describirCambiosCarrito(cambios) {
     const mensajes = [];
@@ -74,6 +75,7 @@ function Carrito() {
     const ultimaFirmaValidada = useRef("");
     const dniCliente = usuario?.dni ?? usuario?.documento ?? usuario?.DNI ?? usuario?.clienteDni ?? "";
     const promocionesNoAplicables = items.filter(function (item) { return item.promocionNoAplicable; });
+    const calculosCarrito = calcularPromocionesCarrito(items);
 
     const { cargando, error, ejecutar: confirmarCompra } = usePeticion(crearVenta, { obtenerMensajeError: obtenerErrorCheckout });
 
@@ -298,6 +300,7 @@ function Carrito() {
                         <div className="bg-ticket border border-line">
                             <div className="divide-y divide-line">
                                 {items.map(function (item) {
+                                    const precioCarrito = calculosCarrito.get(item.productoId);
                                     return (
                                         <div key={item.productoId} className="flex items-center justify-between gap-4 p-5">
                                         <ImagenProducto
@@ -311,9 +314,14 @@ function Carrito() {
                                                 {item.precioOriginal > item.precio && <span className="mr-2 line-through">${item.precioOriginal.toFixed(2)}</span>}
                                                 ${item.precio.toFixed(2)} x {item.cantidad}
                                             </p>
-                                            {item.promocion && item.promocionNoAplicable === null && (
+                                            {precioCarrito.promocion && (
                                                 <p className="font-mono-ticket text-xs text-forest mt-1">
-                                                    {item.promocion.titulo}: ahorrás ${((item.precioOriginal - item.precio) * item.cantidad).toFixed(2)}
+                                                    {precioCarrito.promocion.tipoDescuento === "COMBO"
+                                                        ? `${precioCarrito.promocion.titulo}: ${precioCarrito.combosAplicados} ${precioCarrito.combosAplicados === 1 ? "combo aplicado" : "combos aplicados"}${precioCarrito.unidadesBonificadas ? ` · ${precioCarrito.unidadesBonificadas} unidad(es) bonificada(s)` : ""}`
+                                                        : precioCarrito.promocion.tipoDescuento === "DOS_POR_UNO"
+                                                            ? `${precioCarrito.promocion.titulo}: ${precioCarrito.unidadesBonificadas} ${precioCarrito.unidadesBonificadas === 1 ? "unidad bonificada" : "unidades bonificadas"}`
+                                                            : `${precioCarrito.promocion.titulo}: promoción aplicada`}
+                                                    {" · "}ahorrás {formatoMonedaARS.format(precioCarrito.descuentoCentavos / 100)}
                                                 </p>
                                             )}
                                             {item.promocionNoAplicable && (
@@ -335,7 +343,7 @@ function Carrito() {
                                                 />
                                             </div>
                                             <span className="font-mono-ticket text-2xl text-ink min-w-[110px] text-right">
-                                                ${(item.precio * item.cantidad).toFixed(2)}
+                                                {formatoMonedaARS.format(precioCarrito.subtotalCentavos / 100)}
                                             </span>
                                             <Button
                                                 variant="ghost"

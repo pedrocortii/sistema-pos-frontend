@@ -12,6 +12,7 @@ import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Alert } from "../components/ui/Alert";
 import { formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
+import { calcularPromocionesCarrito } from "../utils/carrito";
 
 function obtenerErrorVenta(error) {
     const datos = error.response?.data;
@@ -185,9 +186,11 @@ function AdminVentaRapida() {
         });
     }, [busqueda, productos]);
 
-    const totalCentavos = items.reduce(function (acumulado, item) {
-        return acumulado + Math.round(item.precio * 100) * item.cantidad;
-    }, 0);
+    const calculosCarrito = calcularPromocionesCarrito(items);
+    const totalCentavos = Array.from(calculosCarrito.values()).reduce(
+        (acumulado, calculo) => acumulado + calculo.subtotalCentavos,
+        0
+    );
     const total = totalCentavos / 100;
     const efectivoCentavos = parsearMontoACentavos(efectivoRecibido);
     const cambioCentavos = efectivoCentavos !== null && efectivoCentavos >= totalCentavos
@@ -219,6 +222,7 @@ function AdminVentaRapida() {
                 nombre: producto.nombre,
                 precio: Number(producto.precioFinal ?? producto.precio),
                 precioOriginal: Number(producto.precio),
+                promocionesDisponibles: producto.promocionesDisponibles || [],
                 disponible: disponible(producto),
                 cantidad: 1
             }];
@@ -425,6 +429,7 @@ function AdminVentaRapida() {
                         <>
                             <ul className="divide-y divide-line max-h-72 overflow-y-auto">
                                 {items.map(function (item) {
+                                    const precioCarrito = calculosCarrito.get(item.productoId);
                                     return (
                                         <li key={item.productoId} className="p-4">
                                             <div className="flex justify-between gap-3">
@@ -464,9 +469,19 @@ function AdminVentaRapida() {
                                                     </button>
                                                 </div>
                                                 <span className="font-mono-ticket text-sm font-bold">
-                                                    {formatoMonedaARS.format(item.precio * item.cantidad)}
+                                                    {formatoMonedaARS.format(precioCarrito.subtotalCentavos / 100)}
                                                 </span>
                                             </div>
+                                            {precioCarrito.promocion && (
+                                                <p className="mt-2 text-xs text-forest">
+                                                    {precioCarrito.promocion.tipoDescuento === "COMBO"
+                                                        ? `${precioCarrito.promocion.titulo}: ${precioCarrito.combosAplicados} ${precioCarrito.combosAplicados === 1 ? "combo aplicado" : "combos aplicados"}${precioCarrito.unidadesBonificadas ? ` · ${precioCarrito.unidadesBonificadas} unidad(es) bonificada(s)` : ""}`
+                                                        : `${precioCarrito.promocion.titulo}${precioCarrito.unidadesBonificadas > 0
+                                                            ? `: ${precioCarrito.unidadesBonificadas} ${precioCarrito.unidadesBonificadas === 1 ? "unidad bonificada" : "unidades bonificadas"}`
+                                                            : ""}`}
+                                                    {" · "}ahorro {formatoMonedaARS.format(precioCarrito.descuentoCentavos / 100)}
+                                                </p>
+                                            )}
                                         </li>
                                     );
                                 })}

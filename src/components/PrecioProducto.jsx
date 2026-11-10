@@ -13,6 +13,24 @@ function PrecioProducto({ producto, className = "" }) {
                     Precio original: <span className="line-through">{formatoMonedaARS.format(precioOriginal)}</span>
                 </p>
             )}
+            {producto.promocionesDisponibles?.some(function (promocion) {
+                return promocion.tipoDescuento === "DOS_POR_UNO";
+            }) && (
+                <p className="text-xs font-semibold text-forest">2x1: llevás 2 unidades y pagás 1</p>
+            )}
+            {producto.promocionesDisponibles?.filter(function (promocion) {
+                return promocion.tipoDescuento === "COMBO";
+            }).map(function (promocion) {
+                const productosCombo = (promocion.productos || [])
+                    .map(function (item) { return item.nombre; })
+                    .filter(Boolean)
+                    .join(" + ");
+                return (
+                    <p key={promocion.id} className="text-xs font-semibold text-forest">
+                        {promocion.titulo}: {productosCombo} por {formatoMonedaARS.format(Number(promocion.precioCombo))}
+                    </p>
+                );
+            })}
             <p className="font-mono-ticket font-bold text-forest">
                 {formatoMonedaARS.format(precioFinal)}
             </p>

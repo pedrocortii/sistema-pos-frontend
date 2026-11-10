@@ -2,6 +2,8 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
     combinarItemsDuplicados,
+    calcularPromocionCarrito,
+    calcularPromocionesCarrito,
     reconciliarItemsCarrito
 } from "../src/utils/carrito.js";
 
@@ -69,6 +71,91 @@ describe("Persistencia y reconciliación del carrito", function () {
         ]);
     });
 
+    test("calcula las unidades bonificadas de una promoción 2x1 sin acumular descuentos", function () {
+        const promocion2x1 = { id: "2x1", tipoDescuento: "DOS_POR_UNO" };
+        const esperados = [
+            { cantidad: 1, total: 2000, ahorro: 0, bonificadas: 0 },
+            { cantidad: 2, total: 2000, ahorro: 2000, bonificadas: 1 },
+            { cantidad: 3, total: 4000, ahorro: 2000, bonificadas: 1 },
+            { cantidad: 4, total: 4000, ahorro: 4000, bonificadas: 2 }
+        ];
+
+        esperados.forEach(function (esperado) {
+            const calculo = calcularPromocionCarrito({
+                cantidad: esperado.cantidad,
+                precio: 2000,
+                promocionesDisponibles: [promocion2x1]
+            });
+            assert.equal(calculo.subtotalCentavos, esperado.total * 100);
+            assert.equal(calculo.descuentoCentavos, esperado.ahorro * 100);
+            assert.equal(calculo.unidadesBonificadas, esperado.bonificadas);
+            assert.equal(calculo.promocion?.id, esperado.bonificadas ? "2x1" : undefined);
+        });
+    });
+
+    test("no aplica 2x1 a productos no alcanzados y recalcula el mayor ahorro", function () {
+        const sinPromocion = calcularPromocionCarrito({ cantidad: 4, precio: 300 });
+        assert.equal(sinPromocion.subtotalCentavos, 120000);
+        assert.equal(sinPromocion.descuentoCentavos, 0);
+
+        const calculo = calcularPromocionCarrito({
+            cantidad: 4,
+            precio: 2000,
+            promocionesDisponibles: [
+                { id: "20", tipoDescuento: "PORCENTAJE", valorDescuento: 20 },
+                { id: "30", tipoDescuento: "PORCENTAJE", valorDescuento: 30 }
+            ]
+        });
+        assert.equal(calculo.descuentoCentavos, 240000);
+        assert.equal(calculo.subtotalCentavos, 560000);
+        assert.equal(calculo.promocion.id, "30");
+    });
+
+    test("aplica el precio fijo por cada conjunto completo y cobra unidades sobrantes a precio normal", function () {
+        const combo = {
+            id: "combo",
+            titulo: "Café + medialuna",
+            tipoDescuento: "COMBO",
+            precioCombo: 250,
+            productoIds: ["cafe", "medialuna"]
+        };
+        const calculos = calcularPromocionesCarrito([
+            { productoId: "cafe", cantidad: 2, precio: 200, promocionesDisponibles: [combo] },
+            { productoId: "medialuna", cantidad: 3, precio: 100, promocionesDisponibles: [combo] }
+        ]);
+        assert.equal(calculos.get("cafe").combosAplicados, 2);
+        assert.equal(calculos.get("medialuna").combosAplicados, 2);
+        assert.equal(calculos.get("cafe").subtotalCentavos + calculos.get("medialuna").subtotalCentavos, 60000);
+        assert.equal(calculos.get("cafe").descuentoCentavos + calculos.get("medialuna").descuentoCentavos, 10000);
+    });
+
+    test("no aplica combos incompletos ni si otra promoción produce un ahorro mayor", function () {
+        const combo = {
+            id: "combo",
+            titulo: "Café + medialuna",
+            tipoDescuento: "COMBO",
+            precioCombo: 250,
+            productoIds: ["cafe", "medialuna"]
+        };
+        const incompleto = calcularPromocionesCarrito([
+            { productoId: "cafe", cantidad: 1, precio: 200, promocionesDisponibles: [combo] }
+        ]);
+        assert.equal(incompleto.get("cafe").combosAplicados, 0);
+        assert.equal(incompleto.get("cafe").subtotalCentavos, 20000);
+
+        const promos = [
+            combo,
+            { id: "cafe-desc", tipoDescuento: "PORCENTAJE", valorDescuento: 50 },
+            { id: "medialuna-desc", tipoDescuento: "PORCENTAJE", valorDescuento: 50 }
+        ];
+        const alternativo = calcularPromocionesCarrito([
+            { productoId: "cafe", cantidad: 1, precio: 200, promocionesDisponibles: promos },
+            { productoId: "medialuna", cantidad: 1, precio: 100, promocionesDisponibles: promos }
+        ]);
+        assert.equal(alternativo.get("cafe").combosAplicados, 0);
+        assert.equal(alternativo.get("cafe").subtotalCentavos + alternativo.get("medialuna").subtotalCentavos, 15000);
+    });
+
     test("conserva el carrito persistido al iniciar y cerrar sesión", async function () {
         const valores = new Map([
             ["carrito", JSON.stringify({
@@ -95,6 +182,15 @@ describe("Persistencia y reconciliación del carrito", function () {
         assert.equal(useCarritoStore.getState().items.length, 1);
         assert.equal(useCarritoStore.getState().items[0].cantidad, 3);
 
+        useCarritoStore.getState().setUltimoComprobante({
+            codigo: "V-TEST-PENDIENTE",
+            estado: "PENDIENTE"
+        });
+        useCarritoStore.getState().limpiarUltimoComprobanteSiCoincide("V-OTRO");
+        assert.equal(useCarritoStore.getState().ultimoComprobante.codigo, "V-TEST-PENDIENTE");
+        useCarritoStore.getState().limpiarUltimoComprobanteSiCoincide("V-TEST-PENDIENTE");
+        assert.equal(useCarritoStore.getState().ultimoComprobante, null);
+
         useAuthStore.getState().iniciarSesion("test-token", {
             id: "cliente-1",
             nombre: "Cliente",
@@ -104,5 +200,23 @@ describe("Persistencia y reconciliación del carrito", function () {
 
         useAuthStore.getState().cerrarSesion();
         assert.equal(useCarritoStore.getState().items[0].cantidad, 3);
+
+        const store = useCarritoStore.getState();
+        store.vaciarCarrito();
+        const componentes = [
+            { id: "cafe", nombre: "Café", precio: 200, stock: 5, stockReservado: 0 },
+            { id: "medialuna", nombre: "Medialuna", precio: 100, stock: 3, stockReservado: 0 }
+        ];
+        assert.equal(store.agregarCombo(componentes, 2), true);
+        assert.deepEqual(
+            useCarritoStore.getState().items.map((item) => [item.productoId, item.cantidad]),
+            [["cafe", 2], ["medialuna", 2]]
+        );
+        assert.equal(store.agregarCombo(componentes, 2), false);
+        assert.deepEqual(
+            useCarritoStore.getState().items.map((item) => [item.productoId, item.cantidad]),
+            [["cafe", 2], ["medialuna", 2]]
+        );
+        useCarritoStore.getState().vaciarCarrito();
     });
 });
