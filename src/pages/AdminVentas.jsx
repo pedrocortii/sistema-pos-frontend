@@ -63,7 +63,8 @@ function AdminVentas() {
                         { value: "EN_PREPARACION", label: "En preparación" },
                         { value: "LISTA_PARA_RETIRAR", label: "Lista para retirar" },
                         { value: "RETIRADA", label: "Retirada" },
-                        { value: "CANCELADA", label: "Cancelada" }
+                        { value: "CANCELADA", label: "Cancelada" },
+                        { value: "REEMBOLSADA", label: "Reembolsada" }
                     ]}
                 />
                 <Input

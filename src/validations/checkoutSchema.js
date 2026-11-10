@@ -18,4 +18,8 @@ export const checkoutSchema = yup.object().shape({
     .trim()
     .required('Debes confirmar tu email')
     .oneOf([yup.ref('email'), null], 'Los emails no coinciden'),
+  nombrePersonalizado: yup.string()
+    .trim()
+    .max(80, 'El nombre de la compra no puede superar los 80 caracteres')
+    .optional(),
 });

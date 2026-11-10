@@ -1,14 +1,37 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { UserX } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { obtenerPerfilUsuario } from "../api/usuarios";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { EmptyState } from "../components/ui/EmptyState";
+import { Alert } from "../components/ui/Alert";
 
 function MiPerfil() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const actualizarPerfilCliente = useAuthStore(function (estado) { return estado.actualizarPerfilCliente; });
+    const [cargandoPerfil, setCargandoPerfil] = useState(true);
+    const [errorPerfil, setErrorPerfil] = useState("");
+    const hayUsuario = Boolean(usuario);
+
+    useEffect(function () {
+        if (!hayUsuario) return undefined;
+
+        let activo = true;
+        obtenerPerfilUsuario().then(function (perfil) {
+            if (activo) actualizarPerfilCliente(perfil);
+        }).catch(function (error) {
+            if (activo) {
+                setErrorPerfil(error.response?.data?.mensaje || "No se pudieron actualizar los datos del perfil.");
+            }
+        }).finally(function () {
+            if (activo) setCargandoPerfil(false);
+        });
+        return function () { activo = false; };
+    }, [actualizarPerfilCliente, hayUsuario]);
 
     if (!usuario) {
         return (
@@ -34,6 +57,7 @@ function MiPerfil() {
             <EncabezadoCliente />
             <main className="max-w-2xl w-full mx-auto px-6 py-10 flex-1">
                 <Card className="p-8">
+                    {errorPerfil && <Alert tipo="error" texto={errorPerfil} className="mb-5" />}
                     <PageHeader
                         etiqueta="Mi perfil"
                         titulo={`${usuario.nombre} ${usuario.apellido || ""}`.trim()}
@@ -48,7 +72,11 @@ function MiPerfil() {
 
                         <div>
                             <p className="text-xs text-ink/50">DNI</p>
-                            <p className="text-ink mt-1 font-medium">{usuario.dni || usuario.documento || usuario.DNI || usuario.clienteDni || "No informado"}</p>
+                            <p className="text-ink mt-1 font-medium">
+                                {cargandoPerfil
+                                    ? "Consultando..."
+                                    : usuario.dni || usuario.documento || usuario.DNI || usuario.clienteDni || "No informado"}
+                            </p>
                         </div>
                     </div>
 

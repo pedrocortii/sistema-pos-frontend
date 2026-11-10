@@ -127,6 +127,14 @@ function AdminVentaDetalle() {
                             )}
                         </div>
 
+                        {venta.estado === "REEMBOLSADA" && (
+                            <Alert
+                                tipo="info"
+                                texto="Mercado Pago informó que el pago fue reembolsado."
+                                className="mt-4"
+                            />
+                        )}
+
                         {venta.estado === "PENDIENTE" && (
                             <div className="mt-6 border-t border-line pt-4 space-y-3">
                                 <div className="flex justify-between text-sm">

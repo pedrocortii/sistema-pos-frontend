@@ -38,6 +38,13 @@ export async function obtenerVenta(id) {
     return respuesta.data.venta;
 }
 
+export async function renombrarVenta(id, nombrePersonalizado) {
+    const respuesta = await http.patch("/ventas/" + encodeURIComponent(id) + "/nombre", {
+        nombrePersonalizado
+    });
+    return respuesta.data.venta;
+}
+
 export async function descargarComprobante(id, codigoComprobante) {
     const respuesta = await http.get("/ventas/" + encodeURIComponent(id) + "/comprobante.pdf", {
         responseType: "blob"

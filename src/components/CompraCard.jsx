@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronUp, FileText, Package, Calendar, CreditCard, RefreshCw, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Package, Calendar, CreditCard, RefreshCw, ShoppingCart, Pencil, Save, X } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
@@ -9,7 +9,7 @@ import { DescargarComprobante } from "./DescargarComprobante";
 import { RetiroProgramado } from "./RetiroProgramado";
 import { formatoMonedaARS } from "../utils/moneda";
 import { obtenerProducto } from "../api/productos";
-import { obtenerVenta } from "../api/ventas";
+import { obtenerVenta, renombrarVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 
 function agruparDetalles(detalles) {
@@ -29,11 +29,55 @@ export function CompraCard({ compra }) {
     const [estaAbierto, setEstaAbierto] = useState(false);
     const [repitiendo, setRepitiendo] = useState(false);
     const [resultadoRepetir, setResultadoRepetir] = useState(null);
+    const [nombrePersonalizado, setNombrePersonalizado] = useState(compra.nombrePersonalizado || "");
+    const [editandoNombre, setEditandoNombre] = useState(false);
+    const [borradorNombre, setBorradorNombre] = useState(compra.nombrePersonalizado || "");
+    const [guardandoNombre, setGuardandoNombre] = useState(false);
+    const [mensajeNombre, setMensajeNombre] = useState(null);
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
+    const nombreCompra = nombrePersonalizado || compra.codigoComprobante || `Compra #${compra.id}`;
     const fechaFormateada = new Date(compra.fecha).toLocaleString("es-AR", {
         dateStyle: "medium",
         timeStyle: "short"
     });
+
+    function iniciarEdicionNombre() {
+        setBorradorNombre(nombrePersonalizado);
+        setMensajeNombre(null);
+        setEditandoNombre(true);
+    }
+
+    async function guardarNombre(evento) {
+        evento.preventDefault();
+        setMensajeNombre(null);
+        const nombre = borradorNombre.trim();
+        if (!nombre) {
+            setMensajeNombre({ tipo: "error", texto: "Ingresá un nombre para la compra." });
+            return;
+        }
+        if (nombre.length > 80) {
+            setMensajeNombre({ tipo: "error", texto: "El nombre no puede superar los 80 caracteres." });
+            return;
+        }
+
+        setGuardandoNombre(true);
+        try {
+            const ventaActualizada = await renombrarVenta(compra.id, nombre);
+            setNombrePersonalizado(ventaActualizada.nombrePersonalizado);
+            setBorradorNombre(ventaActualizada.nombrePersonalizado);
+            setEditandoNombre(false);
+            setMensajeNombre({ tipo: "success", texto: "Nombre de la compra actualizado." });
+        } catch (errorPeticion) {
+            setMensajeNombre({
+                tipo: "error",
+                texto: errorPeticion.response?.data?.errores?.join(". ")
+                    || errorPeticion.response?.data?.mensaje
+                    || "No se pudo actualizar el nombre. Intentá nuevamente."
+            });
+        } finally {
+            setGuardandoNombre(false);
+        }
+    }
 
     async function repetirCompra() {
         if (repitiendo) return;
@@ -119,11 +163,57 @@ export function CompraCard({ compra }) {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono-ticket font-bold text-base text-ink">
-                            {compra.codigoComprobante}
-                        </span>
+                        <h2 className="font-mono-ticket font-bold text-base text-ink break-words">{nombreCompra}</h2>
                         <Badge estado={compra.estado} />
+                        {!editandoNombre && (
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                icon={Pencil}
+                                onClick={iniciarEdicionNombre}
+                                aria-label="Editar nombre de la compra"
+                                title="Editar nombre de la compra"
+                            />
+                        )}
                     </div>
+                    <p className="font-mono-ticket text-xs text-ink/50">
+                        Comprobante: {compra.codigoComprobante}
+                    </p>
+                    {editandoNombre && (
+                        <form onSubmit={guardarNombre} className="flex flex-col gap-2 pt-2 sm:flex-row">
+                            <label className="sr-only" htmlFor={`nombre-compra-${compra.id}`}>Nombre de la compra</label>
+                            <input
+                                id={`nombre-compra-${compra.id}`}
+                                type="text"
+                                value={borradorNombre}
+                                onChange={(evento) => setBorradorNombre(evento.target.value)}
+                                maxLength={80}
+                                placeholder="Ej.: Compra semanal"
+                                aria-describedby={`ayuda-nombre-compra-${compra.id}`}
+                                className="min-w-0 flex-1 border border-line bg-white px-3 py-2 font-mono-ticket text-sm text-ink focus:outline-2 focus:outline-forest"
+                                disabled={guardandoNombre}
+                                autoFocus
+                            />
+                            <span id={`ayuda-nombre-compra-${compra.id}`} className="sr-only">Máximo 80 caracteres.</span>
+                            <div className="flex gap-2">
+                                <Button type="submit" size="sm" icon={Save} loading={guardandoNombre} loadingText="Guardando...">
+                                    Guardar
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={X}
+                                    onClick={() => setEditandoNombre(false)}
+                                    disabled={guardandoNombre}
+                                >
+                                    Cancelar
+                                </Button>
+                            </div>
+                        </form>
+                    )}
+                    {mensajeNombre && (
+                        <Alert tipo={mensajeNombre.tipo} texto={mensajeNombre.texto} className="mt-2" />
+                    )}
                     <div className="flex items-center gap-4 text-xs font-mono-ticket text-ink/60 flex-wrap">
                         <span className="flex items-center gap-1">
                             <Calendar size={13} aria-hidden="true" />
@@ -169,7 +259,7 @@ export function CompraCard({ compra }) {
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="font-mono-ticket text-xs text-ink/60 flex items-center gap-1.5 font-bold">
                             <Package size={14} aria-hidden="true" />
-                            Productos adquiridos
+                            Detalle de {nombreCompra}
                         </h3>
                         {compra.codigoComprobante && (
                             <Link

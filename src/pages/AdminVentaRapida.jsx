@@ -59,6 +59,8 @@ function AdminVentaRapida() {
     const [ventaPendienteCobro, setVentaPendienteCobro] = useState(null);
     const [ultimaVenta, setUltimaVenta] = useState(null);
     const [qrGenerado, setQrGenerado] = useState({ fuente: "", url: "" });
+    const [errorVerificacionQr, setErrorVerificacionQr] = useState("");
+    const [estadoFinalQr, setEstadoFinalQr] = useState("");
     const {
         data: productosResponse,
         isLoading: cargandoProductos,
@@ -114,7 +116,7 @@ function AdminVentaRapida() {
         if (metodoPago !== "MercadoPago" || !ventaPendienteCobro?.id) return undefined;
 
         let activo = true;
-        let intervaloId;
+        let temporizador;
 
         async function verificarEstado() {
             try {
@@ -122,30 +124,46 @@ function AdminVentaRapida() {
                 if (!activo) return;
 
                 const estadoReal = ventaActualizada.estado ?? ventaActualizada.status ?? ventaActualizada.pago?.estado ?? ventaActualizada.pago?.status ?? ventaActualizada.pagoStatus;
-
-                setVentaPendienteCobro(function (actual) {
-                    if (!actual || actual.id !== ventaActualizada.id) return actual;
-                    return { ...actual, ...ventaActualizada, estado: estadoReal };
-                });
+                setErrorVerificacionQr("");
 
                 if (esVentaPagada(ventaActualizada)) {
                     setUltimaVenta(ventaActualizada);
                     setVentaPendienteCobro(null);
                     setItems([]);
                     setEfectivoRecibido("");
-                    await cargarProductos({ page: 1, limit: 100 });
+                    setEstadoFinalQr("");
+                    cargarProductos({ page: 1, limit: 100 }).catch(function () {});
+                    return;
                 }
+
+                if (["CANCELADA", "REEMBOLSADA"].includes(estadoReal)) {
+                    setVentaPendienteCobro(null);
+                    setEstadoFinalQr(estadoReal === "REEMBOLSADA"
+                        ? "Mercado Pago informó que el pago fue reembolsado."
+                        : ventaActualizada.mpOrderStatus === "expired"
+                            ? "El QR venció y la venta quedó cancelada. Podés generar un nuevo QR si el cliente todavía desea comprar."
+                            : "El pago fue cancelado y la venta quedó cancelada. Podés generar un nuevo QR si el cliente todavía desea comprar.");
+                    cargarProductos({ page: 1, limit: 100 }).catch(function () {});
+                    return;
+                }
+                setVentaPendienteCobro(function (actual) {
+                    if (!actual || actual.id !== ventaActualizada.id) return actual;
+                    return { ...actual, ...ventaActualizada, estado: estadoReal };
+                });
             } catch {
-                // Se reintenta en el siguiente ciclo.
+                if (activo) {
+                    setErrorVerificacionQr("No se pudo consultar el estado del pago. No vuelvas a registrar la venta; la consulta se reintentará automáticamente.");
+                }
+            } finally {
+                if (activo) temporizador = window.setTimeout(verificarEstado, 10000);
             }
         }
 
-        verificarEstado();
-        intervaloId = window.setInterval(verificarEstado, 2000);
+        temporizador = window.setTimeout(verificarEstado, 10000);
 
         return function () {
             activo = false;
-            window.clearInterval(intervaloId);
+            window.clearTimeout(temporizador);
         };
     }, [cargarProductos, metodoPago, ventaPendienteCobro?.id]);
 
@@ -221,6 +239,8 @@ function AdminVentaRapida() {
 
     async function confirmarVenta() {
         if (!items.length || registrando || cobrando) return;
+        setEstadoFinalQr("");
+        setErrorVerificacionQr("");
 
         if (metodoPago === "Efectivo") {
             if (efectivoCentavos === null || efectivoCentavos <= 0 || efectivoCentavos < totalCentavos) return;
@@ -314,6 +334,9 @@ function AdminVentaRapida() {
                     className="mb-6"
                 />
             )}
+            {estadoFinalQr && (
+                <Alert variant="warning" texto={estadoFinalQr} className="mb-6" />
+            )}
 
             <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
                 <div className="border border-line bg-ticket">
@@ -389,6 +412,9 @@ function AdminVentaRapida() {
                                     : "La venta ya está registrada. Reintentá el cobro para evitar duplicarla."
                             }
                         />
+                    )}
+                    {errorVerificacionQr && (
+                        <Alert variant="warning" texto={errorVerificacionQr} />
                     )}
 
                     {!items.length ? (
@@ -515,7 +541,9 @@ function AdminVentaRapida() {
                                             </p>
                                         )}
                                         <p className="mt-3 text-[11px] text-ink/60">
-                                            Estado: {esVentaPagada(ventaPendienteCobro) ? "Pago confirmado" : "Esperando pago"}
+                                            Estado: {esVentaPagada(ventaPendienteCobro)
+                                                ? "Pago confirmado"
+                                                : ventaPendienteCobro.mpOrderStatusDetail || ventaPendienteCobro.mpOrderStatus || "Esperando pago"}
                                         </p>
                                     </div>
                                 )}

@@ -88,7 +88,7 @@ function ProductoDetalle() {
                         </h1>
 
                         {producto.descripcion && (
-                            <p className="text-ink/70 mt-3 font-sans">
+                            <p className="text-ink/70 mt-3 font-display">
                                 {producto.descripcion}
                             </p>
                         )}
