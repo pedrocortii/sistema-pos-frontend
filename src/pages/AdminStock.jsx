@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
 import { ajustarStock, listarStock } from "../api/stock";
+import { exportarStock } from "../api/reportes";
 import AjustarStockModal from "../components/AjustarStockModal";
 import { PageHeader } from "../components/ui/PageHeader";
 import { TableBody, TableEmpty, TableHead, TableHeader } from "../components/ui/Table";
@@ -7,6 +9,8 @@ import { Pagination } from "../components/ui/Pagination";
 import { DataTable } from "../components/ui/DataTable";
 import { FilterBar } from "../components/ui/FilterBar";
 import { AdminStockRow } from "../components/AdminStockRow";
+import { Alert } from "../components/ui/Alert";
+import { Button } from "../components/ui/Button";
 import { useModal } from "../hooks/useModal";
 import { useAuthStore } from "../store/authStore";
 import { useDataTable } from "../hooks/useDataTable";
@@ -42,6 +46,24 @@ function AdminStock() {
     const visibles = datos.slice((pagina - 1) * 10, pagina * 10);
 
     const [guardando, setGuardando] = useState(false);
+    const [exportacion, setExportacion] = useState("");
+    const [errorExportacion, setErrorExportacion] = useState("");
+    const exportacionEnCurso = useRef(false);
+
+    async function manejarExportacion(formato) {
+        if (exportacionEnCurso.current) return;
+        exportacionEnCurso.current = true;
+        setExportacion(formato);
+        setErrorExportacion("");
+        try {
+            await exportarStock(formato, { bajo });
+        } catch (error) {
+            setErrorExportacion(error.message || "No se pudo generar el reporte de stock.");
+        } finally {
+            exportacionEnCurso.current = false;
+            setExportacion("");
+        }
+    }
 
     async function guardar(datos) {
         setGuardando(true);
@@ -58,7 +80,37 @@ function AdminStock() {
 
     return (
         <section>
-            <PageHeader etiqueta="Stock" titulo="Inventario" />
+            <PageHeader
+                etiqueta="Stock"
+                titulo="Inventario"
+                acciones={esAdministrador && (
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={FileDown}
+                            loading={exportacion === "pdf"}
+                            disabled={Boolean(exportacion)}
+                            onClick={() => manejarExportacion("pdf")}
+                        >
+                            Exportar PDF
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={FileSpreadsheet}
+                            loading={exportacion === "xlsx"}
+                            disabled={Boolean(exportacion)}
+                            onClick={() => manejarExportacion("xlsx")}
+                        >
+                            Exportar Excel
+                        </Button>
+                    </div>
+                )}
+            />
+            {errorExportacion && (
+                <Alert tipo="error" texto={errorExportacion} className="mb-4" />
+            )}
 
             <FilterBar>
                 <label className="flex w-fit cursor-pointer items-center gap-2 text-sm select-none">
