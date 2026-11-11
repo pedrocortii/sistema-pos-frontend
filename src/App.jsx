@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import LoginCliente from "./pages/LoginCliente";
 import Registro from "./pages/Registro";
+import SolicitarRecuperacion from "./pages/SolicitarRecuperacion";
+import RestablecerContrasena from "./pages/RestablecerContrasena";
 import Dashboard from "./pages/Dashboard";
 import Catalogo from "./pages/Catalogo";
 import ProductoDetalle from "./pages/ProductoDetalle";
@@ -38,6 +40,8 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/login-cliente" element={<LoginCliente />} />
                 <Route path="/registro" element={<Registro />} />
+                <Route path="/recuperar-contrasena" element={<SolicitarRecuperacion />} />
+                <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
 
                 {/* Rutas publicas: el cliente no necesita login. */}
                 <Route path="/catalogo" element={<Catalogo />} />

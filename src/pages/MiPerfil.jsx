@@ -80,6 +80,21 @@ function MiPerfil() {
                         </div>
                     </div>
 
+                    {usuario.rol === "Cliente" && (
+                        <div className="mt-6 border-t border-line pt-6">
+                            <p className="text-sm font-semibold text-ink">Seguridad de la cuenta</p>
+                            <p className="mt-1 text-sm text-ink/60">
+                                Para cambiar tu contraseña, solicitá un enlace de recuperación por email.
+                            </p>
+                            <Link
+                                to="/recuperar-contrasena"
+                                className="mt-3 inline-block text-sm text-forest underline"
+                            >
+                                Cambiar contraseña
+                            </Link>
+                        </div>
+                    )}
+
                     <div className="mt-8 pt-6 border-t border-line flex flex-wrap gap-3">
                         {usuario.rol === "Cliente" && (
                             <Link to="/historial">
