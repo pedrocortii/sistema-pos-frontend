@@ -13,6 +13,12 @@ function LoginCliente() {
             mensajeExito={registroExitoso ? "Cuenta creada correctamente. Ya podés iniciar sesión." : ""}
         >
             <p className="text-center text-sm text-ink/60">
+                <Link to="/recuperar-contrasena" className="text-forest underline">
+                    ¿Olvidaste tu contraseña?
+                </Link>
+            </p>
+
+            <p className="text-center text-sm text-ink/60">
                 Todavía no tenés cuenta?{" "}
                 <Link to="/registro" state={{ returnTo: ubicacion.state?.returnTo }} className="text-forest underline">
                     Crear cuenta

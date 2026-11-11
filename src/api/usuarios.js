@@ -5,6 +5,16 @@ export async function registrarUsuario(datos) {
     return respuesta.data;
 }
 
+export async function solicitarRecuperacionContrasena(datos) {
+    const respuesta = await publicHttp.post("/usuarios/solicitar-recuperacion", datos);
+    return respuesta.data;
+}
+
+export async function restablecerContrasena(datos) {
+    const respuesta = await publicHttp.post("/usuarios/restablecer-contrasena", datos);
+    return respuesta.data;
+}
+
 export async function obtenerPerfilUsuario() {
     const respuesta = await http.get("/usuarios/perfil");
     return respuesta.data.usuario;
