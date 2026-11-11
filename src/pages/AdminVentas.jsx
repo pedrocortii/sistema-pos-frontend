@@ -1,7 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { listarVentas } from "../api/ventas";
+import { exportarVentas } from "../api/reportes";
+import { Alert } from "../components/ui/Alert";
+import { Button } from "../components/ui/Button";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
@@ -11,9 +14,15 @@ import { DataTable } from "../components/ui/DataTable";
 import { FilterBar } from "../components/ui/FilterBar";
 import { AdminVentaRow } from "../components/AdminVentaRow";
 import { useDataTable } from "../hooks/useDataTable";
+import { useAuthStore } from "../store/authStore";
 
 function AdminVentas() {
     const nav = useNavigate();
+    const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const esAdministrador = usuario?.rol === "Administrador";
+    const [exportacion, setExportacion] = useState("");
+    const [errorExportacion, setErrorExportacion] = useState("");
+    const exportacionEnCurso = useRef(false);
 
     const {
         data: ventasResponse,
@@ -42,9 +51,57 @@ function AdminVentas() {
     const totalPaginas = ventasResponse?.total ? Math.ceil(ventasResponse.total / 10) : 1;
     const visibles = datos;
 
+    async function manejarExportacion(formato) {
+        if (exportacionEnCurso.current) return;
+        exportacionEnCurso.current = true;
+        setExportacion(formato);
+        setErrorExportacion("");
+        try {
+            await exportarVentas(formato, {
+                ...filters,
+                buscar
+            });
+        } catch (error) {
+            setErrorExportacion(error.message || "No se pudo generar el reporte de ventas.");
+        } finally {
+            exportacionEnCurso.current = false;
+            setExportacion("");
+        }
+    }
+
     return (
         <section>
-            <PageHeader etiqueta="Ventas" titulo="Ventas registradas" />
+            <PageHeader
+                etiqueta="Ventas"
+                titulo="Ventas registradas"
+                acciones={esAdministrador && (
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={FileDown}
+                            loading={exportacion === "pdf"}
+                            disabled={Boolean(exportacion)}
+                            onClick={() => manejarExportacion("pdf")}
+                        >
+                            Exportar PDF
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={FileSpreadsheet}
+                            loading={exportacion === "xlsx"}
+                            disabled={Boolean(exportacion)}
+                            onClick={() => manejarExportacion("xlsx")}
+                        >
+                            Exportar Excel
+                        </Button>
+                    </div>
+                )}
+            />
+            {errorExportacion && (
+                <Alert tipo="error" texto={errorExportacion} className="mb-4" />
+            )}
 
             <FilterBar>
                 <Input

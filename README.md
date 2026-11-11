@@ -62,6 +62,7 @@ npm run dev
 * **Login**: inicio de sesión conectado al backend (JWT)
 * **Registro**: alta de nuevos clientes (autoservicio)
 * **Carrito**: persistencia local en Zustand/localStorage. El carrito no se almacena en el backend ni se asocia a una cuenta; iniciar o cerrar sesión conserva la selección. Los productos repetidos se agrupan sumando cantidades y, antes de confirmar, se actualizan desde el catálogo: se eliminan los no disponibles, se ajustan cantidades al stock restante y se informa cualquier cambio de precio. El backend calcula nuevamente precios, promociones y stock al registrar la venta.
+* **Reportes administrativos**: descarga de ventas en PDF/Excel respetando fechas, estado y búsqueda; descarga de inventario completo o solo stock bajo. La generación se realiza en endpoints autenticados del backend.
 
 ## Estado Actual
 
