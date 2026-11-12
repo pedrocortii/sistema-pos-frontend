@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Info, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { listarProductos } from "../api/productos";
 import { actualizarPromocion, crearPromocion, eliminarPromocion, listarPromociones, obtenerPrecioMinimoPromocional } from "../api/promociones";
@@ -6,6 +6,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Badge } from "../components/ui/Badge";
+import { Alert } from "../components/ui/Alert";
 import { Modal } from "../components/ui/Modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/Table";
 import { formatoMonedaARS } from "../utils/moneda";
@@ -23,6 +24,9 @@ function AdminPromociones() {
     const [cargando, setCargando] = useState(true);
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState("");
+    const [mensaje, setMensaje] = useState(null);
+    const procesandoRef = useRef(new Set());
+    const [procesandoIds, setProcesandoIds] = useState(new Set());
     const [precioMinimo, setPrecioMinimo] = useState(null);
     const [busquedaProductos, setBusquedaProductos] = useState("");
     const [busquedaCategorias, setBusquedaCategorias] = useState("");
@@ -64,7 +68,9 @@ function AdminPromociones() {
             setPrecioMinimo(minimo);
             setError("");
         } catch (errorPeticion) {
-            setError(errorPeticion.response?.data?.mensaje || "No se pudieron cargar las promociones.");
+            const mensajeError = errorPeticion.response?.data?.mensaje || "No se pudieron cargar las promociones.";
+            setError(mensajeError);
+            setMensaje({ tipo: "error", texto: mensajeError });
         } finally {
             setCargando(false);
         }
@@ -77,6 +83,7 @@ function AdminPromociones() {
         setBusquedaCategorias("");
         setModal(promocion || {});
         setError("");
+        setMensaje(null);
     }
     function cambiar(campo, valor) { setFormulario((actual) => ({ ...actual, [campo]: valor })); }
     function cambiarTipoDescuento(valor) {
@@ -123,6 +130,10 @@ function AdminPromociones() {
             if (modal.id) await actualizarPromocion(modal.id, datos);
             else await crearPromocion(datos);
             setModal(null);
+            setMensaje({
+                tipo: "success",
+                texto: modal.id ? "Promoción actualizada correctamente." : "Promoción creada correctamente."
+            });
             await cargar();
         } catch (errorPeticion) {
             setError(errorPeticion.response?.data?.errores?.join(". ") || errorPeticion.response?.data?.mensaje || "No se pudo guardar la promocion.");
@@ -130,7 +141,56 @@ function AdminPromociones() {
             setGuardando(false);
         }
     }
-    async function borrar(promocion) { if (!window.confirm(`¿Eliminar “${promocion.titulo}”?`)) return; try { await eliminarPromocion(promocion.id); await cargar(); } catch (errorPeticion) { setError(errorPeticion.response?.data?.mensaje || "No se pudo eliminar la promocion."); } }
+    async function borrar(promocion) {
+        if (!window.confirm(`¿Eliminar “${promocion.titulo}”?`)) return;
+        setMensaje(null);
+        try {
+            await eliminarPromocion(promocion.id);
+            setMensaje({ tipo: "success", texto: `La promoción “${promocion.titulo}” se eliminó correctamente.` });
+            await cargar();
+        } catch (errorPeticion) {
+            setMensaje({ tipo: "error", texto: errorPeticion.response?.data?.mensaje || "No se pudo eliminar la promoción." });
+        }
+    }
+
+    async function alternarActivo(promocion) {
+        if (!promocion?.id || procesandoRef.current.has(promocion.id)) return;
+        const nuevoEstado = !promocion.activo;
+        const confirmacion = nuevoEstado
+            ? `¿Activar la promoción “${promocion.titulo}”?`
+            : `¿Desactivar la promoción “${promocion.titulo}”?`;
+
+        if (typeof window !== "undefined" && window.confirm && !window.confirm(confirmacion)) {
+            return;
+        }
+
+        if (procesandoRef.current.has(promocion.id)) return;
+        procesandoRef.current.add(promocion.id);
+        setProcesandoIds(new Set(procesandoRef.current));
+        setMensaje(null);
+
+        try {
+            await actualizarPromocion(promocion.id, { activo: nuevoEstado });
+            setMensaje({
+                tipo: "success",
+                texto: nuevoEstado
+                    ? `La promoción “${promocion.titulo}” se activó correctamente.`
+                    : `La promoción “${promocion.titulo}” se desactivó correctamente.`
+            });
+            await cargar();
+        } catch (errorPeticion) {
+            setMensaje({
+                tipo: "error",
+                texto: errorPeticion.response?.data?.mensaje ||
+                    errorPeticion.response?.data?.errores?.join(". ") ||
+                    `No se pudo ${nuevoEstado ? "activar" : "desactivar"} la promoción.`
+            });
+        } finally {
+            procesandoRef.current.delete(promocion.id);
+            setProcesandoIds(new Set(procesandoRef.current));
+        }
+    }
+
     const opciones = [["PORCENTAJE", "Porcentaje", "Ej.: 20% de descuento"], ["IMPORTE", "Importe fijo", "Ej.: $1.000 de descuento"], ["DOS_POR_UNO", "2x1", "Llevás 2 unidades y pagás 1"], ["COMBO", "Combo", "Productos seleccionados por un precio total"]];
     const alcances = [["PRODUCTOS", "Productos específicos"], ["CATEGORIAS", "Categorías completas"], ["AMBOS", "Productos y categorías"]];
     return (
@@ -140,6 +200,13 @@ function AdminPromociones() {
                 titulo="Promociones y descuentos"
                 acciones={<Button icon={Plus} onClick={() => abrir()}>Nueva promoción</Button>}
             />
+            {mensaje && (
+                <Alert
+                    tipo={mensaje.tipo}
+                    texto={mensaje.texto}
+                    className="mb-5"
+                />
+            )}
             {precioMinimo !== null && (
                 <p className="mb-5 flex items-center gap-2 font-display text-sm text-ink/60">
                     <Info size={16} className="shrink-0 text-forest" aria-hidden="true" />
@@ -180,7 +247,17 @@ function AdminPromociones() {
                                 </TableCell>
                                 <TableCell><Badge estado={estado(promocion)}>{estado(promocion)}</Badge></TableCell>
                                 <TableCell>
-                                    <div className="flex gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant={promocion.activo ? "danger-outline" : "outline"}
+                                            onClick={() => alternarActivo(promocion)}
+                                            disabled={procesandoIds.has(promocion.id)}
+                                            loading={procesandoIds.has(promocion.id)}
+                                            aria-label={promocion.activo ? "Desactivar promoción" : "Activar promoción"}
+                                        >
+                                            {promocion.activo ? "Desactivar" : "Activar"}
+                                        </Button>
                                         <Button size="icon-md" variant="outline" aria-label="Editar promoción" onClick={() => abrir(promocion)}><Pencil size={15} /></Button>
                                         <Button size="icon-md" variant="danger-outline" aria-label="Eliminar promoción" onClick={() => borrar(promocion)}><Trash2 size={15} /></Button>
                                     </div>

@@ -11,13 +11,13 @@ function resolverVariante(estado, variantProp) {
     if (!estado) return "neutral";
 
     const limpio = String(estado).toUpperCase().trim();
-    if (["COBRADA", "PAGADA", "PAGADO", "CONFIRMADA", "APROBADA", "ACTIVO", "LISTA_PARA_RETIRAR"].includes(limpio)) {
+    if (["COBRADA", "PAGADA", "PAGADO", "CONFIRMADA", "APROBADA", "ACTIVO", "ACTIVA", "LISTA_PARA_RETIRAR"].includes(limpio)) {
         return "success";
     }
-    if (["PENDIENTE", "EN ESPERA", "PENDIENTE DE PAGO", "EN_PREPARACION"].includes(limpio)) {
+    if (["PENDIENTE", "EN ESPERA", "PENDIENTE DE PAGO", "EN_PREPARACION", "FUTURA"].includes(limpio)) {
         return "warning";
     }
-    if (["CANCELADA", "RECHAZADA", "FALLIDA", "STOCK BAJO", "SIN STOCK", "INACTIVO"].includes(limpio)) {
+    if (["CANCELADA", "RECHAZADA", "FALLIDA", "STOCK BAJO", "SIN STOCK", "INACTIVO", "INACTIVA", "VENCIDA"].includes(limpio)) {
         return "danger";
     }
     if (limpio === "REEMBOLSADA") return "info";
