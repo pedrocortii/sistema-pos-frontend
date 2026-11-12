@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Minus, Plus, Search, ShoppingCart, Trash2, User, X } from "lucide-react";
 import { listarProductos } from "../api/productos";
 import { cobrarVenta, consultarEstadoQr, crearVentaDirecta } from "../api/ventas";
+import { buscarClientePorDni } from "../api/usuarios";
 import { usePeticion } from "../hooks/usePeticion";
 import { useAuthStore } from "../store/authStore";
 import { CargaAdmin } from "../components/AdminUI";
@@ -13,6 +14,7 @@ import { Select } from "../components/ui/Select";
 import { Alert } from "../components/ui/Alert";
 import { formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 import { calcularPromocionesCarrito } from "../utils/carrito";
+import { limpiarDni, validarFormatoDni } from "../validations/dni";
 
 function obtenerErrorVenta(error) {
     const datos = error.response?.data;
@@ -56,6 +58,11 @@ function AdminVentaRapida() {
             return "Efectivo";
         }
     });
+    const [clienteSeleccionado, setClienteSeleccionado] = useState(function () {
+        return null;
+    });
+    const [dniBusqueda, setDniBusqueda] = useState("");
+    const [errorDniBusqueda, setErrorDniBusqueda] = useState("");
     const [efectivoRecibido, setEfectivoRecibido] = useState("");
     const [ventaPendienteCobro, setVentaPendienteCobro] = useState(null);
     const [ultimaVenta, setUltimaVenta] = useState(null);
@@ -78,6 +85,19 @@ function AdminVentaRapida() {
         error: errorCobro,
         execute: procesarCobro
     } = usePeticion(cobrarVenta);
+    const {
+        isLoading: buscandoCliente,
+        error: errorBusquedaCliente,
+        execute: ejecutarBusquedaCliente,
+        setError: setErrorBusquedaCliente
+    } = usePeticion(buscarClientePorDni, {
+        obtenerMensajeError: function (error) {
+            if (error.response?.status === 404) {
+                return "No se encontró ningún cliente con el DNI ingresado. Podés continuar con una venta sin cliente registrado.";
+            }
+            return error.response?.data?.mensaje || "Error al buscar cliente por DNI.";
+        }
+    });
 
     useEffect(function () {
         cargarProductos({ page: 1, limit: 100 }).catch(function () {
@@ -86,7 +106,10 @@ function AdminVentaRapida() {
     }, [cargarProductos]);
 
     useEffect(function () {
-        localStorage.setItem(clavePersistencia, JSON.stringify({ items: items, metodoPago: metodoPago }));
+        localStorage.setItem(clavePersistencia, JSON.stringify({
+            items: items,
+            metodoPago: metodoPago
+        }));
     }, [clavePersistencia, items, metodoPago]);
 
     useEffect(function () {
@@ -131,6 +154,7 @@ function AdminVentaRapida() {
                     setUltimaVenta(ventaActualizada);
                     setVentaPendienteCobro(null);
                     setItems([]);
+                    setClienteSeleccionado(null);
                     setEfectivoRecibido("");
                     setEstadoFinalQr("");
                     cargarProductos({ page: 1, limit: 100 }).catch(function () {});
@@ -241,10 +265,38 @@ function AdminVentaRapida() {
         });
     }
 
+    async function buscarCliente(event) {
+        event.preventDefault();
+        const dni = dniBusqueda.trim();
+        if (!validarFormatoDni(dni)) {
+            setErrorDniBusqueda("Ingresá un DNI válido de 7 u 8 números.");
+            return;
+        }
+
+        setErrorDniBusqueda("");
+        setClienteSeleccionado(null);
+        try {
+            const cliente = await ejecutarBusquedaCliente(limpiarDni(dni));
+            setClienteSeleccionado(cliente);
+        } catch {
+            // El hook expone el mensaje de error para que el cajero pueda continuar sin cliente.
+        }
+    }
+
+    function quitarCliente() {
+        setClienteSeleccionado(null);
+        setDniBusqueda("");
+        setErrorDniBusqueda("");
+        setErrorBusquedaCliente(null);
+    }
+
     async function confirmarVenta() {
         if (!items.length || registrando || cobrando) return;
         setEstadoFinalQr("");
         setErrorVerificacionQr("");
+        const datosCliente = clienteSeleccionado
+            ? { cliente: { id: clienteSeleccionado.id, dni: clienteSeleccionado.dni } }
+            : {};
 
         if (metodoPago === "Efectivo") {
             if (efectivoCentavos === null || efectivoCentavos <= 0 || efectivoCentavos < totalCentavos) return;
@@ -256,6 +308,7 @@ function AdminVentaRapida() {
                         items: items.map(function (item) {
                             return { productoId: item.productoId, cantidad: item.cantidad };
                         }),
+                        ...datosCliente,
                         metodoPago: "Efectivo",
                         cobrar: false
                     });
@@ -269,6 +322,7 @@ function AdminVentaRapida() {
                 setUltimaVenta(ventaCobrada || venta);
                 setVentaPendienteCobro(null);
                 setItems([]);
+                setClienteSeleccionado(null);
                 setEfectivoRecibido("");
                 await cargarProductos({ page: 1, limit: 100 });
             } catch {
@@ -283,6 +337,7 @@ function AdminVentaRapida() {
                     items: items.map(function (item) {
                         return { productoId: item.productoId, cantidad: item.cantidad };
                     }),
+                    ...datosCliente,
                     metodoPago: "MercadoPago",
                     cobrar: false
                 });
@@ -300,11 +355,13 @@ function AdminVentaRapida() {
                 items: items.map(function (item) {
                     return { productoId: item.productoId, cantidad: item.cantidad };
                 }),
+                ...datosCliente,
                 metodoPago: metodoPago,
                 cobrar: true
             });
             setUltimaVenta(venta);
             setItems([]);
+            setClienteSeleccionado(null);
             await cargarProductos({ page: 1, limit: 100 });
         } catch {
             // El hook deja el error visible para el cajero.
@@ -342,8 +399,8 @@ function AdminVentaRapida() {
                 <Alert variant="warning" texto={estadoFinalQr} className="mb-6" />
             )}
 
-            <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
-                <div className="border border-line bg-ticket">
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_25rem] xl:gap-6">
+                <div className="order-2 border border-line bg-ticket xl:order-1">
                     <div className="border-b border-line p-4">
                         <Input
                             id="buscar-producto"
@@ -367,13 +424,13 @@ function AdminVentaRapida() {
                                         type="button"
                                         disabled={sinStock || Boolean(producto.promocionNoAplicable) || Boolean(ventaPendienteCobro)}
                                         onClick={function () { agregarProducto(producto); }}
-                                        className="cursor-pointer p-4 text-left transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-45"
+                                        className="cursor-pointer p-2 text-left transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-45"
                                     >
-                                        <p className="font-display text-lg text-ink">{producto.nombre}</p>
-                                        <p className="mt-1 text-xs text-ink/55">
+                                        <p className="font-display text-base text-ink">{producto.nombre}</p>
+                                        <p className="text-[11px] text-ink/55">
                                             {producto.categoria || "Sin categoría"} · {stock} disponibles
                                         </p>
-                                        <div className="mt-3 flex items-center justify-between text-sm">
+                                        <div className="mt-1 flex items-center justify-between text-sm">
                                             <span className="font-mono-ticket text-forest font-bold">
                                                 {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-2 text-xs text-ink/45 line-through">{formatoMonedaARS.format(Number(producto.precio))}</span>}
                                                 {formatoMonedaARS.format(Number(producto.precioFinal ?? producto.precio))}
@@ -401,11 +458,72 @@ function AdminVentaRapida() {
                     )}
                 </div>
 
-                <aside className="h-fit border border-line bg-ticket xl:sticky xl:top-24">
-                    <div className="flex items-center gap-2 border-b border-line p-4">
+                <aside className="order-1 h-fit border border-line bg-ticket xl:sticky xl:top-20 xl:order-2 xl:max-h-[calc(100vh-5.5rem)] xl:self-start xl:overflow-y-auto">
+                    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-ticket px-3 py-2">
                         <ShoppingCart size={19} aria-hidden="true" />
-                        <h2 className="font-display text-xl text-ink">Venta actual</h2>
+                        <h2 className="font-display text-lg text-ink">Venta actual</h2>
                     </div>
+
+                    <section className="border-b border-line px-3 py-2" aria-labelledby="cliente-venta-rapida">
+                        <h3 id="cliente-venta-rapida" className="mb-2 flex items-center gap-2 text-sm font-bold text-ink">
+                            <User size={16} aria-hidden="true" />
+                            Cliente registrado (opcional)
+                        </h3>
+                        {clienteSeleccionado ? (
+                            <div className="flex items-start gap-2 border border-line bg-paper px-3 py-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold leading-5 text-ink">
+                                        {clienteSeleccionado.nombre} {clienteSeleccionado.apellido}
+                                    </p>
+                                    <p className="text-xs leading-4 text-ink/60">DNI: {clienteSeleccionado.dni}</p>
+                                    <p className="break-all text-xs leading-4 text-ink/60">{clienteSeleccionado.email}</p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    icon={X}
+                                    aria-label="Quitar cliente"
+                                    title="Quitar cliente"
+                                    className="shrink-0"
+                                    disabled={buscandoCliente || registrando || cobrando || Boolean(ventaPendienteCobro)}
+                                    onClick={quitarCliente}
+                                />
+                            </div>
+                        ) : (
+                            <form onSubmit={buscarCliente} className="space-y-3">
+                                <Input
+                                    id="dni-cliente-venta-rapida"
+                                    label="Buscar por DNI"
+                                    value={dniBusqueda}
+                                    onChange={function (event) {
+                                        setDniBusqueda(event.target.value);
+                                        setErrorDniBusqueda("");
+                                        setErrorBusquedaCliente(null);
+                                    }}
+                                    placeholder="Ej.: 12345678"
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    error={errorDniBusqueda}
+                                    disabled={buscandoCliente || registrando || cobrando || Boolean(ventaPendienteCobro)}
+                                />
+                                <Button
+                                    type="submit"
+                                    variant="secondary"
+                                    icon={Search}
+                                    loading={buscandoCliente}
+                                    loadingText="Buscando..."
+                                    disabled={registrando || cobrando || Boolean(ventaPendienteCobro)}
+                                    className="w-full"
+                                >
+                                    Buscar cliente
+                                </Button>
+                                {errorBusquedaCliente && (
+                                    <Alert variant="warning" texto={errorBusquedaCliente} />
+                                )}
+                            </form>
+                        )}
+                    </section>
 
                     {ventaPendienteCobro && (
                         <Alert
@@ -427,11 +545,11 @@ function AdminVentaRapida() {
                         </p>
                     ) : (
                         <>
-                            <ul className="divide-y divide-line max-h-72 overflow-y-auto">
+                            <ul className="divide-y divide-line max-h-48 overflow-y-auto">
                                 {items.map(function (item) {
                                     const precioCarrito = calculosCarrito.get(item.productoId);
                                     return (
-                                        <li key={item.productoId} className="p-4">
+                                        <li key={item.productoId} className="p-3">
                                             <div className="flex justify-between gap-3">
                                                 <p className="font-display text-ink">{item.nombre}</p>
                                                 <button
@@ -444,7 +562,7 @@ function AdminVentaRapida() {
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
-                                            <div className="mt-3 flex items-center justify-between">
+                                            <div className="mt-2 flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         type="button"
@@ -487,7 +605,7 @@ function AdminVentaRapida() {
                                 })}
                             </ul>
 
-                            <div className="border-t border-line p-4 space-y-4">
+                            <div className="border-t border-line p-3 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-ink/60">Total</span>
                                     <span className="font-mono-ticket text-2xl text-forest font-bold">{formatoMonedaARS.format(total)}</span>

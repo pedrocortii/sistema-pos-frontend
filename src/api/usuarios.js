@@ -19,3 +19,8 @@ export async function obtenerPerfilUsuario() {
     const respuesta = await http.get("/usuarios/perfil");
     return respuesta.data.usuario;
 }
+
+export async function buscarClientePorDni(dni) {
+    const respuesta = await http.get("/usuarios/dni/" + encodeURIComponent(dni));
+    return respuesta.data.cliente || respuesta.data.usuario || respuesta.data;
+}
