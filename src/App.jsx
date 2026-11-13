@@ -47,7 +47,6 @@ function App() {
                 <Route path="/catalogo" element={<Catalogo />} />
                 <Route path="/catalogo/:id" element={<ProductoDetalle />} />
                 <Route path="/carrito" element={<Carrito />} />
-                <Route path="/mi-perfil" element={<MiPerfil />} />
                 <Route path="/comprobante/:codigo" element={<ReimprimirComprobante />} />
 
                 {/* Rutas protegidas: cualquier usuario autenticado. */}
@@ -61,6 +60,15 @@ function App() {
                 />
 
                 {/* Rutas protegidas: clientes autenticados. */}
+                <Route
+                    path="/mi-perfil"
+                    element={
+                        <RutaProtegida rolesPermitidos={["Cliente"]}>
+                            <MiPerfil />
+                        </RutaProtegida>
+                    }
+                />
+
                 <Route
                     path="/historial"
                     element={
