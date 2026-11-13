@@ -20,6 +20,16 @@ export async function obtenerPerfilUsuario() {
     return respuesta.data.usuario;
 }
 
+export async function actualizarPerfilUsuario(datos) {
+    const respuesta = await http.put("/usuarios/perfil", datos);
+    return respuesta.data.usuario;
+}
+
+export async function cambiarContrasenaUsuario(datos) {
+    const respuesta = await http.put("/usuarios/cambiar-contrasena", datos);
+    return respuesta.data;
+}
+
 export async function buscarClientePorDni(dni) {
     const respuesta = await http.get("/usuarios/dni/" + encodeURIComponent(dni));
     return respuesta.data.cliente || respuesta.data.usuario || respuesta.data;
