@@ -10,3 +10,11 @@ export const stockAdjustmentSchema = yup.object().shape({
     .trim()
     .required('El motivo es obligatorio'),
 });
+
+export const umbralStockBajoSchema = yup.object().shape({
+  umbralStockBajo: yup.number()
+    .typeError('El umbral debe ser un número')
+    .integer('El umbral debe ser un número entero')
+    .min(0, 'El umbral no puede ser negativo')
+    .required('El umbral es obligatorio'),
+});

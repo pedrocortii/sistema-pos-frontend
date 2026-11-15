@@ -5,7 +5,7 @@ import ImagenProducto from "./ImagenProducto";
 import { SlidersHorizontal } from "lucide-react";
 
 export function AdminStockRow({ producto, onAdjust, esAdministrador }) {
-    const esBajo = producto.stockDisponible <= 5;
+    const esBajo = producto.stockBajo === true;
     return (
         <tr className="border-b border-line last:border-0 hover:bg-paper/40 transition-colors">
             <TableCell>
