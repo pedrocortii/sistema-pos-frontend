@@ -4,7 +4,7 @@ import { descargarComprobante } from "../api/ventas";
 import { Button } from "./ui/Button";
 import { Alert } from "./ui/Alert";
 
-export function DescargarComprobante({ codigoComprobante, className = "" }) {
+export function DescargarComprobante({ codigoComprobante, tokenAcceso, className = "" }) {
     const [descargando, setDescargando] = useState(false);
     const [error, setError] = useState(null);
     const solicitudEnCurso = useRef(false);
@@ -16,7 +16,7 @@ export function DescargarComprobante({ codigoComprobante, className = "" }) {
         setDescargando(true);
         setError(null);
         try {
-            await descargarComprobante(codigoComprobante);
+            await descargarComprobante(codigoComprobante, tokenAcceso);
         } catch {
             setError("No se pudo generar el comprobante. Intentá nuevamente.");
         } finally {

@@ -7,6 +7,7 @@ import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
 import PrecioProducto from "./PrecioProducto";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 
 function ProductoCatalogoCard({ producto }) {
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
@@ -14,11 +15,7 @@ function ProductoCatalogoCard({ producto }) {
     const [agregado, setAgregado] = useState(false);
     const [avisoStock, setAvisoStock] = useState("");
 
-    const stock = Number(producto.stock);
-    const stockReservado = Number(producto.stockReservado || 0);
-    const stockDisponible = Number.isFinite(stock)
-        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
-        : 0;
+    const stockDisponible = obtenerDisponibilidadProducto(producto);
     const itemEnCarrito = items.find(function (item) { return item.productoId === producto.id; });
     const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
     const cantidadMaxima = Math.max(0, stockDisponible - cantidadEnCarrito);

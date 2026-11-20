@@ -1,3 +1,5 @@
+import { obtenerDisponibilidadProducto } from "./stock.js";
+
 function cantidadValida(valor) {
     const cantidad = Number(valor);
     return Number.isSafeInteger(cantidad) && cantidad > 0 ? cantidad : 0;
@@ -97,11 +99,7 @@ export function reconciliarItemsCarrito(items, productos, idsNoDisponibles = [])
             return;
         }
 
-        const stock = Number(producto.stock);
-        const stockReservado = Number(producto.stockReservado || 0);
-        const stockDisponible = Number.isFinite(stock) && Number.isFinite(stockReservado)
-            ? Math.max(0, stock - stockReservado)
-            : 0;
+        const stockDisponible = obtenerDisponibilidadProducto(producto);
         if (stockDisponible === 0) {
             resultado.eliminados.push(producto.nombre || item.nombre || "Producto");
             return;

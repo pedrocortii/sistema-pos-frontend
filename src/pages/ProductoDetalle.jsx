@@ -13,6 +13,7 @@ import { Badge } from "../components/ui/Badge";
 import { Alert } from "../components/ui/Alert";
 import { usePeticion } from "../hooks/usePeticion";
 import PrecioProducto from "../components/PrecioProducto";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 
 function obtenerErrorProducto() {
     return "No se pudo cargar el producto.";
@@ -51,11 +52,7 @@ function ProductoDetalle() {
         }
     }
 
-    const stock = producto ? Number(producto.stock) : 0;
-    const stockReservado = producto ? Number(producto.stockReservado || 0) : 0;
-    const stockDisponible = Number.isFinite(stock)
-        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
-        : 0;
+    const stockDisponible = producto ? obtenerDisponibilidadProducto(producto) : 0;
 
     return (
         <div className="min-h-screen bg-paper">

@@ -21,6 +21,11 @@ export async function obtenerResumenStockBajo() {
     return respuesta.data;
 }
 
+export async function obtenerResumenInventario() {
+    const respuesta = await http.get("/stock/resumen-inventario");
+    return respuesta.data;
+}
+
 export async function obtenerVistaPreviaStockBajo(umbral) {
     const respuesta = await http.get("/stock/vista-previa", { params: { umbral } });
     return respuesta.data;

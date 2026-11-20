@@ -7,6 +7,7 @@ import ImagenProducto from "./ImagenProducto";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { formatoMonedaARS } from "../utils/moneda";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 
 function promocionesDisponiblesPara(producto, promociones) {
     return promociones.filter(function (promocion) {
@@ -52,7 +53,7 @@ function ComboCatalogoCard({ promocion, promociones }) {
     const cantidadesCarrito = new Map(itemsCarrito.map((item) => [item.productoId, item.cantidad]));
     const maximoCombos = productos.length >= 2 && productos.every((producto) => producto.activo !== false)
         ? Math.min(...productos.map(function (producto) {
-            const stockDisponible = Math.max(0, Number(producto.stock || 0) - Number(producto.stockReservado || 0));
+            const stockDisponible = obtenerDisponibilidadProducto(producto);
             const cantidadEnCarrito = cantidadesCarrito.get(producto.id) || 0;
             return Math.max(0, stockDisponible - cantidadEnCarrito);
         }))

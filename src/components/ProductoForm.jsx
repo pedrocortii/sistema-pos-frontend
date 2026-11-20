@@ -39,7 +39,13 @@ function ProductoForm({ producto, alCerrar, alGuardar, guardando, error, categor
                 <Select label="Categoría" required options={[{ value: "", label: "Seleccioná una categoría" }, ...categorias.map((item) => ({ value: item.id, label: item.nombre }))]} {...register("categoriaId")} error={errors.categoriaId} disabled={Boolean(errorClasificacion) || !categorias.length} />
                 <Select label="Tipo de producto" required options={[{ value: "", label: "Seleccioná un tipo" }, ...tiposProducto.map((item) => ({ value: item.id, label: item.nombre }))]} {...register("tipoProductoId")} error={errors.tipoProductoId} disabled={Boolean(errorClasificacion) || !tiposProducto.length} />
                 <Input label="Precio" type="number" min="0.01" step="0.01" required {...register("precio")} error={errors.precio} />
-                <Input label="Stock inicial" type="number" min="0" step="1" required {...register("stock")} error={errors.stock} />
+                {producto ? (
+                    <div className="border border-line bg-paper px-3 py-2 font-mono-ticket text-xs text-ink/70">
+                        El stock se modifica desde la sección Stock, con su movimiento e historial.
+                    </div>
+                ) : (
+                    <Input label="Stock inicial" type="number" min="0" step="1" required {...register("stock")} error={errors.stock} />
+                )}
                 <div className="sm:col-span-2"><Textarea label="Descripción" rows={3} {...register("descripcion")} error={errors.descripcion} /></div>
             </div>
             {errorClasificacion && <Alert tipo="error" texto={errorClasificacion} />}
