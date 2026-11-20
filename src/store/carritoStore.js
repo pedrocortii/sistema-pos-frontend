@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { calcularPromocionesCarrito, combinarItemsDuplicados, reconciliarItemsCarrito } from "../utils/carrito.js";
+import { obtenerDisponibilidadProducto } from "../utils/stock.js";
 
 export const useCarritoStore = create(persist(function (set, get) {
     return {
@@ -25,11 +26,7 @@ export const useCarritoStore = create(persist(function (set, get) {
             const cantidadAAgregar = Number(cantidad) || 1;
             const items = get().items;
             const existente = items.find(function (item) { return item.productoId === producto.id; });
-            const stock = Number(producto.stock);
-            const stockReservado = Number(producto.stockReservado || 0);
-            const stockDisponible = Number.isFinite(stock)
-                ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
-                : 0;
+            const stockDisponible = obtenerDisponibilidadProducto(producto);
             const cantidadActual = existente ? existente.cantidad : 0;
             const cantidadSolicitada = cantidadActual + cantidadAAgregar;
 
@@ -94,11 +91,7 @@ export const useCarritoStore = create(persist(function (set, get) {
                 ids.add(producto.id);
 
                 const existente = nuevosItems.get(producto.id);
-                const stock = Number(producto.stock);
-                const stockReservado = Number(producto.stockReservado || 0);
-                const stockDisponible = Number.isFinite(stock)
-                    ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
-                    : 0;
+                const stockDisponible = obtenerDisponibilidadProducto(producto);
                 const cantidadActual = existente?.cantidad || 0;
                 if (cantidadActual + cantidad > stockDisponible) return false;
 

@@ -30,7 +30,8 @@ function obtenerValoresPerfil(usuario) {
         nombre: usuario?.nombre || "",
         apellido: usuario?.apellido || "",
         dni: usuario?.dni || "",
-        email: usuario?.email || ""
+        email: usuario?.email || "",
+        contrasenaActual: ""
     };
 }
 
@@ -64,6 +65,7 @@ function DatoPerfil({ etiqueta, valor, cargando }) {
 function MiPerfil() {
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     const actualizarPerfilCliente = useAuthStore(function (estado) { return estado.actualizarPerfilCliente; });
+    const iniciarSesion = useAuthStore(function (estado) { return estado.iniciarSesion; });
     const [cargandoPerfil, setCargandoPerfil] = useState(true);
     const [errorPerfil, setErrorPerfil] = useState("");
     const [editandoPerfil, setEditandoPerfil] = useState(false);
@@ -149,7 +151,8 @@ function MiPerfil() {
                 nombre: datos.nombre.trim(),
                 apellido: datos.apellido.trim(),
                 dni: datos.dni.trim(),
-                email: datos.email.trim()
+                email: datos.email.trim(),
+                ...(datos.contrasenaActual ? { contrasenaActual: datos.contrasenaActual } : {})
             });
 
             actualizarPerfilCliente(perfilActualizado);
@@ -165,11 +168,17 @@ function MiPerfil() {
         setMensajeContrasena("");
 
         try {
-            await ejecutarCambiarContrasena({
+            const respuesta = await ejecutarCambiarContrasena({
                 contrasenaActual: datos.contrasenaActual,
                 contrasenaNueva: datos.contrasenaNueva,
                 confirmarContrasena: datos.confirmarContrasena
             });
+
+            // El backend invalida los demas tokens y devuelve uno nuevo para
+            // conservar esta sesion abierta.
+            if (respuesta?.token) {
+                iniciarSesion(respuesta.token, usuario);
+            }
 
             resetContrasena(VALORES_CONTRASENA_VACIOS);
             setMensajeContrasena("Tu contraseña se actualizó correctamente.");
@@ -251,6 +260,15 @@ function MiPerfil() {
                                     error={erroresPerfil.email}
                                     {...registrarPerfil("email")}
                                 />
+                                <Input
+                                    label="Contraseña actual"
+                                    type="password"
+                                    autoComplete="current-password"
+                                    containerClassName="sm:col-span-2"
+                                    hint="Solo es obligatoria si cambiás el email."
+                                    error={erroresPerfil.contrasenaActual}
+                                    {...registrarPerfil("contrasenaActual")}
+                                />
                             </div>
 
                             <div className="mt-6 flex flex-wrap gap-3">
@@ -315,7 +333,7 @@ function MiPerfil() {
                                 label="Nueva contraseña"
                                 type="password"
                                 autoComplete="new-password"
-                                hint="Mínimo 6 caracteres."
+                                hint="Mínimo 8 caracteres."
                                 required
                                 error={erroresContrasena.contrasenaNueva}
                                 {...registrarContrasena("contrasenaNueva")}

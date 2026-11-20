@@ -12,7 +12,10 @@ import { restablecerContrasenaSchema } from "../validations/recuperacionContrase
 
 function RestablecerContrasena() {
     const [parametros] = useSearchParams();
-    const token = parametros.get("token");
+    // El backend envía el token en el fragmento (#) para no dejarlo en logs.
+    // Se mantiene el query string como compatibilidad con enlaces viejos.
+    const tokenDelHash = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
+    const token = tokenDelHash || parametros.get("token");
     const [contrasenaRestablecida, setContrasenaRestablecida] = useState(false);
     const {
         cargando,
@@ -63,7 +66,7 @@ function RestablecerContrasena() {
                         type="password"
                         variant="line"
                         autoComplete="new-password"
-                        placeholder="Al menos 6 caracteres"
+                        placeholder="Al menos 8 caracteres"
                         required
                         error={errors.contrasena}
                         {...register("contrasena")}

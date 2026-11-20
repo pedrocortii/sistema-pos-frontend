@@ -18,14 +18,18 @@ export const perfilSchema = yup.object().shape({
         .trim()
         .email("El email no es válido")
         .required("El email es obligatorio")
-        .max(255, "El email no puede superar los 255 caracteres")
+        .max(255, "El email no puede superar los 255 caracteres"),
+    contrasenaActual: yup.string()
+        .trim()
+        .max(200, "La contraseña actual no es válida")
 });
 
 export const cambiarContrasenaSchema = yup.object().shape({
     contrasenaActual: yup.string()
         .required("La contraseña actual es obligatoria"),
     contrasenaNueva: yup.string()
-        .min(6, "La nueva contraseña debe tener al menos 6 caracteres")
+        .min(8, "La nueva contraseña debe tener al menos 8 caracteres")
+        .max(72, "La nueva contraseña no puede superar los 72 caracteres")
         .required("La nueva contraseña es obligatoria"),
     confirmarContrasena: yup.string()
         .required("Debes confirmar la nueva contraseña")

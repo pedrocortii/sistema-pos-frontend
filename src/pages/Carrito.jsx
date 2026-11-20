@@ -246,10 +246,14 @@ function Carrito() {
             setUltimoComprobante({
                 codigo: venta.codigoComprobante,
                 estado: venta.estado,
-                total: venta.total
+                total: venta.total,
+                tokenAcceso: venta.tokenAcceso || ""
             });
             vaciarCarrito();
-            navegar("/comprobante/" + venta.codigoComprobante, { replace: true });
+            navegar("/comprobante/" + venta.codigoComprobante, {
+                replace: true,
+                state: venta.tokenAcceso ? { tokenAcceso: venta.tokenAcceso } : undefined
+            });
         } catch {
             await sincronizarCarrito();
             try {

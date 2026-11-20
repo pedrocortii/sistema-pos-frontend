@@ -1,22 +1,26 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { resolverDestinoRuta } from "../utils/rutas";
 
 // Protege una ruta. Si recibe `rolesPermitidos`, valida que el rol del
 // usuario este en la lista. Si no recibe roles, solo exige estar autenticado.
-// Si no hay token, redirige a "/".
+// Sin sesion redirige al login.
+// Con sesion pero sin permiso redirige a la pagina de inicio del rol, evitando
+// bucles (por ejemplo, un Cliente nunca es enviado al Dashboard de administracion).
 function RutaProtegida({ children, rolesPermitidos }) {
     const token = useAuthStore(function (estado) { return estado.token; });
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
+    const ubicacion = useLocation();
 
-    if (!token) {
-        return <Navigate to="/" replace />;
-    }
+    const destino = resolverDestinoRuta({
+        token,
+        rol: usuario && usuario.rol,
+        rolesPermitidos,
+        rutaActual: ubicacion.pathname
+    });
 
-    if (rolesPermitidos && Array.isArray(rolesPermitidos) && rolesPermitidos.length > 0) {
-        const rol = usuario && usuario.rol;
-        if (!rol || !rolesPermitidos.includes(rol)) {
-            return <Navigate to="/dashboard" replace />;
-        }
+    if (destino) {
+        return <Navigate to={destino} replace />;
     }
 
     return children || <Outlet />;

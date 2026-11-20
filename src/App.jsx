@@ -22,14 +22,13 @@ import AdminPromociones from "./pages/AdminPromociones";
 import AdminClasificacion from "./pages/AdminClasificacion";
 import AdminConfiguracionRetiro from "./pages/AdminConfiguracionRetiro";
 import { useAuthStore } from "./store/authStore";
+import { rutaInicioPorRol } from "./utils/rutas";
 
 function RedireccionRaiz() {
     const token = useAuthStore(function (estado) { return estado.token; });
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     if (!token) return <Navigate to="/login" replace />;
-    if (usuario?.rol === "Administrador") return <Navigate to="/admin/dashboard" replace />;
-    if (usuario?.rol === "Cajero") return <Navigate to="/admin/venta-rapida" replace />;
-    return <Navigate to="/catalogo" replace />;
+    return <Navigate to={rutaInicioPorRol(usuario?.rol)} replace />;
 }
 
 function App() {

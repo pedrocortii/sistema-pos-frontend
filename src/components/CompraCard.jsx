@@ -8,6 +8,7 @@ import { Alert } from "./ui/Alert";
 import { DescargarComprobante } from "./DescargarComprobante";
 import { RetiroProgramado } from "./RetiroProgramado";
 import { formatoMonedaARS } from "../utils/moneda";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 import { obtenerProducto } from "../api/productos";
 import { cancelarCompraCliente, obtenerVenta, renombrarVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
@@ -115,11 +116,9 @@ export function CompraCard({ compra }) {
         const resultados = await Promise.all(detalles.map(async function (detalle) {
             try {
                 const producto = await obtenerProducto(detalle.productoId);
-                const stock = Number(producto.stock);
-                const reservado = Number(producto.stockReservado || 0);
-                const stockDisponible = Math.max(0, stock - reservado);
+                const stockDisponible = obtenerDisponibilidadProducto(producto);
 
-                if (!Number.isFinite(stock) || !Number.isFinite(reservado) || stockDisponible < detalle.cantidad) {
+                if (stockDisponible < detalle.cantidad) {
                     return {
                         ok: false,
                         nombre: producto.nombre || detalle.producto?.nombre || "Producto",
