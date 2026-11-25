@@ -13,6 +13,13 @@ function Login() {
             mensajeExito={registroExitoso ? "Cuenta creada correctamente. Ya podes iniciar sesion." : ""}
         >
             <p className="text-center text-sm text-ink/60">
+                ¿Sos cliente y olvidaste tu contraseña?{" "}
+                <Link to="/recuperar-contrasena" className="text-forest underline">
+                    Recuperar contraseña
+                </Link>
+            </p>
+
+            <p className="text-center text-sm text-ink/60">
                 Es cliente?{" "}
                 <Link to="/catalogo" className="text-forest underline">
                     Ir al catalogo

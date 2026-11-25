@@ -15,8 +15,10 @@ export async function crearVentaDirecta(datos) {
     return respuesta.data.venta || respuesta.data;
 }
 
-export async function obtenerComprobante(codigo) {
-    const respuesta = await http.get("/ventas/comprobante/" + codigo);
+export async function obtenerComprobante(codigo, tokenAcceso) {
+    const respuesta = await http.get("/ventas/comprobante/" + encodeURIComponent(codigo), {
+        headers: tokenAcceso ? { "x-token-comprobante": tokenAcceso } : undefined
+    });
     return respuesta.data.venta;
 }
 
@@ -24,8 +26,15 @@ export async function cobrarVentaPublica(id) {
     await publicHttp.patch("/ventas/" + id + "/cobrar", { metodoPago: "MercadoPago" });
 }
 
-export async function cancelarVentaPublica(id) {
-    await publicHttp.patch("/ventas/" + id + "/cancelar", {});
+export async function cancelarVentaPublica(id, tokenAcceso) {
+    await http.patch("/ventas/" + encodeURIComponent(id) + "/cancelar", {}, {
+        headers: tokenAcceso ? { "x-token-comprobante": tokenAcceso } : undefined
+    });
+}
+
+export async function cancelarCompraCliente(id) {
+    const respuesta = await http.patch("/ventas/" + encodeURIComponent(id) + "/cancelar-cliente", {});
+    return respuesta.data.venta;
 }
 
 export async function listarVentas(filtros) {
@@ -36,6 +45,35 @@ export async function listarVentas(filtros) {
 export async function obtenerVenta(id) {
     const respuesta = await http.get("/ventas/" + id);
     return respuesta.data.venta;
+}
+
+export async function renombrarVenta(id, nombrePersonalizado) {
+    const respuesta = await http.patch("/ventas/" + encodeURIComponent(id) + "/nombre", {
+        nombrePersonalizado
+    });
+    return respuesta.data.venta;
+}
+
+export async function descargarComprobante(codigoComprobante, tokenAcceso) {
+    const respuesta = await http.get("/ventas/comprobante/" + encodeURIComponent(codigoComprobante) + "/pdf", {
+        responseType: "blob",
+        headers: tokenAcceso ? { "x-token-comprobante": tokenAcceso } : undefined
+    });
+    const archivo = new Blob([respuesta.data], { type: "application/pdf" });
+    const url = URL.createObjectURL(archivo);
+    const enlace = document.createElement("a");
+    const codigoSeguro = String(codigoComprobante || "compra").replace(/[^a-zA-Z0-9_-]/g, "-");
+    enlace.href = url;
+    enlace.download = "comprobante-compra-" + codigoSeguro + ".pdf";
+    enlace.style.display = "none";
+    document.body.appendChild(enlace);
+
+    try {
+        enlace.click();
+    } finally {
+        enlace.remove();
+        window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
 }
 
 export async function consultarEstadoQr(id) {

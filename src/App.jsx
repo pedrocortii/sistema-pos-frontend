@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import LoginCliente from "./pages/LoginCliente";
 import Registro from "./pages/Registro";
+import SolicitarRecuperacion from "./pages/SolicitarRecuperacion";
+import RestablecerContrasena from "./pages/RestablecerContrasena";
 import Dashboard from "./pages/Dashboard";
 import Catalogo from "./pages/Catalogo";
 import ProductoDetalle from "./pages/ProductoDetalle";
@@ -18,15 +20,15 @@ import AdminVentaDetalle from "./pages/AdminVentaDetalle";
 import AdminVentaRapida from "./pages/AdminVentaRapida";
 import AdminPromociones from "./pages/AdminPromociones";
 import AdminClasificacion from "./pages/AdminClasificacion";
+import AdminConfiguracionRetiro from "./pages/AdminConfiguracionRetiro";
 import { useAuthStore } from "./store/authStore";
+import { rutaInicioPorRol } from "./utils/rutas";
 
 function RedireccionRaiz() {
     const token = useAuthStore(function (estado) { return estado.token; });
     const usuario = useAuthStore(function (estado) { return estado.usuario; });
     if (!token) return <Navigate to="/login" replace />;
-    if (usuario?.rol === "Administrador") return <Navigate to="/admin/dashboard" replace />;
-    if (usuario?.rol === "Cajero") return <Navigate to="/admin/venta-rapida" replace />;
-    return <Navigate to="/catalogo" replace />;
+    return <Navigate to={rutaInicioPorRol(usuario?.rol)} replace />;
 }
 
 function App() {
@@ -37,12 +39,13 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/login-cliente" element={<LoginCliente />} />
                 <Route path="/registro" element={<Registro />} />
+                <Route path="/recuperar-contrasena" element={<SolicitarRecuperacion />} />
+                <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
 
                 {/* Rutas publicas: el cliente no necesita login. */}
                 <Route path="/catalogo" element={<Catalogo />} />
                 <Route path="/catalogo/:id" element={<ProductoDetalle />} />
                 <Route path="/carrito" element={<Carrito />} />
-                <Route path="/mi-perfil" element={<MiPerfil />} />
                 <Route path="/comprobante/:codigo" element={<ReimprimirComprobante />} />
 
                 {/* Rutas protegidas: cualquier usuario autenticado. */}
@@ -56,6 +59,15 @@ function App() {
                 />
 
                 {/* Rutas protegidas: clientes autenticados. */}
+                <Route
+                    path="/mi-perfil"
+                    element={
+                        <RutaProtegida rolesPermitidos={["Cliente"]}>
+                            <MiPerfil />
+                        </RutaProtegida>
+                    }
+                />
+
                 <Route
                     path="/historial"
                     element={
@@ -76,6 +88,7 @@ function App() {
                         />
                         <Route path="promociones" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminPromociones /></RutaProtegida>} />
                         <Route path="clasificacion" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminClasificacion /></RutaProtegida>} />
+                        <Route path="retiros" element={<RutaProtegida rolesPermitidos={["Administrador"]}><AdminConfiguracionRetiro /></RutaProtegida>} />
                         <Route
                             path="stock"
                             element={<AdminStock />}

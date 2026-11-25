@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronUp, FileText, Package, Calendar, CreditCard, RefreshCw, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Package, Calendar, CreditCard, RefreshCw, ShoppingCart, Pencil, Save, X, Ban } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
 import { Alert } from "./ui/Alert";
+import { DescargarComprobante } from "./DescargarComprobante";
+import { RetiroProgramado } from "./RetiroProgramado";
 import { formatoMonedaARS } from "../utils/moneda";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 import { obtenerProducto } from "../api/productos";
-import { obtenerVenta } from "../api/ventas";
+import { cancelarCompraCliente, obtenerVenta, renombrarVenta } from "../api/ventas";
 import { useCarritoStore } from "../store/carritoStore";
 
 function agruparDetalles(detalles) {
@@ -27,11 +30,61 @@ export function CompraCard({ compra }) {
     const [estaAbierto, setEstaAbierto] = useState(false);
     const [repitiendo, setRepitiendo] = useState(false);
     const [resultadoRepetir, setResultadoRepetir] = useState(null);
+    const [estadoCompra, setEstadoCompra] = useState(compra.estado);
+    const [cancelandoCompra, setCancelandoCompra] = useState(false);
+    const [mensajeCancelacion, setMensajeCancelacion] = useState(null);
+    const [nombrePersonalizado, setNombrePersonalizado] = useState(compra.nombrePersonalizado || "");
+    const [editandoNombre, setEditandoNombre] = useState(false);
+    const [borradorNombre, setBorradorNombre] = useState(compra.nombrePersonalizado || "");
+    const [guardandoNombre, setGuardandoNombre] = useState(false);
+    const [mensajeNombre, setMensajeNombre] = useState(null);
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
+    const limpiarUltimoComprobanteSiCoincide = useCarritoStore(function (estado) {
+        return estado.limpiarUltimoComprobanteSiCoincide;
+    });
+    const nombreCompra = nombrePersonalizado || compra.codigoComprobante || `Compra #${compra.id}`;
     const fechaFormateada = new Date(compra.fecha).toLocaleString("es-AR", {
         dateStyle: "medium",
         timeStyle: "short"
     });
+
+    function iniciarEdicionNombre() {
+        setBorradorNombre(nombrePersonalizado);
+        setMensajeNombre(null);
+        setEditandoNombre(true);
+    }
+
+    async function guardarNombre(evento) {
+        evento.preventDefault();
+        setMensajeNombre(null);
+        const nombre = borradorNombre.trim();
+        if (!nombre) {
+            setMensajeNombre({ tipo: "error", texto: "Ingresá un nombre para la compra." });
+            return;
+        }
+        if (nombre.length > 80) {
+            setMensajeNombre({ tipo: "error", texto: "El nombre no puede superar los 80 caracteres." });
+            return;
+        }
+
+        setGuardandoNombre(true);
+        try {
+            const ventaActualizada = await renombrarVenta(compra.id, nombre);
+            setNombrePersonalizado(ventaActualizada.nombrePersonalizado);
+            setBorradorNombre(ventaActualizada.nombrePersonalizado);
+            setEditandoNombre(false);
+            setMensajeNombre({ tipo: "success", texto: "Nombre de la compra actualizado." });
+        } catch (errorPeticion) {
+            setMensajeNombre({
+                tipo: "error",
+                texto: errorPeticion.response?.data?.errores?.join(". ")
+                    || errorPeticion.response?.data?.mensaje
+                    || "No se pudo actualizar el nombre. Intentá nuevamente."
+            });
+        } finally {
+            setGuardandoNombre(false);
+        }
+    }
 
     async function repetirCompra() {
         if (repitiendo) return;
@@ -63,11 +116,9 @@ export function CompraCard({ compra }) {
         const resultados = await Promise.all(detalles.map(async function (detalle) {
             try {
                 const producto = await obtenerProducto(detalle.productoId);
-                const stock = Number(producto.stock);
-                const reservado = Number(producto.stockReservado || 0);
-                const stockDisponible = Math.max(0, stock - reservado);
+                const stockDisponible = obtenerDisponibilidadProducto(producto);
 
-                if (!Number.isFinite(stock) || !Number.isFinite(reservado) || stockDisponible < detalle.cantidad) {
+                if (stockDisponible < detalle.cantidad) {
                     return {
                         ok: false,
                         nombre: producto.nombre || detalle.producto?.nombre || "Producto",
@@ -111,17 +162,102 @@ export function CompraCard({ compra }) {
         setRepitiendo(false);
     }
 
+    async function cancelarCompra() {
+        if (cancelandoCompra || estadoCompra !== "PENDIENTE") return;
+        if (!window.confirm("¿Querés cancelar esta compra? Esta acción no se puede deshacer.")) return;
+
+        setCancelandoCompra(true);
+        setMensajeCancelacion(null);
+        try {
+            const ventaCancelada = await cancelarCompraCliente(compra.id);
+            setEstadoCompra(ventaCancelada.estado);
+            limpiarUltimoComprobanteSiCoincide(compra.codigoComprobante);
+            setMensajeCancelacion({ tipo: "success", texto: "La compra se canceló y el stock reservado fue liberado." });
+        } catch (errorPeticion) {
+            if (errorPeticion.response?.status === 409) {
+                try {
+                    const compraActualizada = await obtenerVenta(compra.id);
+                    setEstadoCompra(compraActualizada.estado);
+                    setMensajeCancelacion({
+                        tipo: "warning",
+                        texto: "La compra cambió de estado antes de cancelarse. Actualizamos su estado actual."
+                    });
+                } catch {
+                    setMensajeCancelacion({
+                        tipo: "error",
+                        texto: "La compra cambió de estado y no pudo cancelarse. Actualizá el historial para consultar su estado actual."
+                    });
+                }
+                return;
+            }
+
+            setMensajeCancelacion({
+                tipo: "error",
+                texto: errorPeticion.response?.data?.mensaje
+                    || "No se pudo cancelar la compra. Actualizá el historial y volvé a intentar."
+            });
+        } finally {
+            setCancelandoCompra(false);
+        }
+    }
+
     return (
         <Card className="p-5 transition-shadow hover:shadow-sm">
             {/* Cabecera de la compra */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono-ticket font-bold text-base text-ink">
-                            {compra.codigoComprobante}
-                        </span>
-                        <Badge estado={compra.estado} />
+                        <h2 className="font-mono-ticket font-bold text-base text-ink break-words">{nombreCompra}</h2>
+                        <Badge estado={estadoCompra} />
+                        {!editandoNombre && (
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                icon={Pencil}
+                                onClick={iniciarEdicionNombre}
+                                aria-label="Editar nombre de la compra"
+                                title="Editar nombre de la compra"
+                            />
+                        )}
                     </div>
+                    <p className="font-mono-ticket text-xs text-ink/50">
+                        Comprobante: {compra.codigoComprobante}
+                    </p>
+                    {editandoNombre && (
+                        <form onSubmit={guardarNombre} className="flex flex-col gap-2 pt-2 sm:flex-row">
+                            <label className="sr-only" htmlFor={`nombre-compra-${compra.id}`}>Nombre de la compra</label>
+                            <input
+                                id={`nombre-compra-${compra.id}`}
+                                type="text"
+                                value={borradorNombre}
+                                onChange={(evento) => setBorradorNombre(evento.target.value)}
+                                maxLength={80}
+                                placeholder="Ej.: Compra semanal"
+                                aria-describedby={`ayuda-nombre-compra-${compra.id}`}
+                                className="min-w-0 flex-1 border border-line bg-white px-3 py-2 font-mono-ticket text-sm text-ink focus:outline-2 focus:outline-forest"
+                                disabled={guardandoNombre}
+                                autoFocus
+                            />
+                            <span id={`ayuda-nombre-compra-${compra.id}`} className="sr-only">Máximo 80 caracteres.</span>
+                            <div className="flex gap-2">
+                                <Button type="submit" size="sm" icon={Save} loading={guardandoNombre} loadingText="Guardando...">
+                                    Guardar
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={X}
+                                    onClick={() => setEditandoNombre(false)}
+                                    disabled={guardandoNombre}
+                                >
+                                    Cancelar
+                                </Button>
+                            </div>
+                        </form>
+                    )}
+                    {mensajeNombre && (
+                        <Alert tipo={mensajeNombre.tipo} texto={mensajeNombre.texto} className="mt-2" />
+                    )}
                     <div className="flex items-center gap-4 text-xs font-mono-ticket text-ink/60 flex-wrap">
                         <span className="flex items-center gap-1">
                             <Calendar size={13} aria-hidden="true" />
@@ -134,6 +270,7 @@ export function CompraCard({ compra }) {
                             </span>
                         )}
                     </div>
+                    <RetiroProgramado venta={compra} compacto className="text-ink/70" />
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-line">
@@ -166,7 +303,7 @@ export function CompraCard({ compra }) {
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="font-mono-ticket text-xs text-ink/60 flex items-center gap-1.5 font-bold">
                             <Package size={14} aria-hidden="true" />
-                            Productos adquiridos
+                            Detalle de {nombreCompra}
                         </h3>
                         {compra.codigoComprobante && (
                             <Link
@@ -195,6 +332,19 @@ export function CompraCard({ compra }) {
                                         <tr key={item.id} className="hover:bg-paper/40">
                                             <td className="py-2.5 px-3 font-medium text-ink">
                                                 {item.producto?.nombre || "Producto"}
+                                                {item.promocionTitulo && (
+                                                    <span className="block text-xs font-normal text-forest">
+                                                        {item.promocionTitulo}
+                                                        {item.combosAplicados > 0
+                                                            ? ` · ${item.combosAplicados} ${item.combosAplicados === 1 ? "combo aplicado" : "combos aplicados"}`
+                                                            : item.unidadesBonificadas > 0
+                                                                ? ` · ${item.unidadesBonificadas} ${item.unidadesBonificadas === 1 ? "unidad bonificada" : "unidades bonificadas"}`
+                                                                : ""}
+                                                        {Number(item.descuentoTotal) > 0
+                                                            ? ` · ahorro ${formatoMonedaARS.format(Number(item.descuentoTotal))}`
+                                                            : ""}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="py-2.5 px-3 text-center text-ink/80">
                                                 {item.cantidad}
@@ -226,27 +376,49 @@ export function CompraCard({ compra }) {
                         </p>
                     )}
 
-                    <div className="mt-5 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon={RefreshCw}
-                            onClick={repetirCompra}
-                            loading={repitiendo}
-                            loadingText="Verificando..."
-                        >
-                            Repetir compra
-                        </Button>
-                        {resultadoRepetir && (
-                            <Alert tipo={resultadoRepetir.tipo} texto={resultadoRepetir.texto} className="m-0 flex-1" />
-                        )}
-                        {resultadoRepetir?.tipo === "success" && (
-                            <Link to="/carrito" className="shrink-0">
-                                <Button variant="primary" size="sm" icon={ShoppingCart}>Ir al carrito</Button>
-                            </Link>
-                        )}
-                    </div>
                 </div>
+            )}
+
+            <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                {estadoCompra === "PENDIENTE" && (
+                    <Button
+                        variant="danger-outline"
+                        size="sm"
+                        icon={Ban}
+                        onClick={cancelarCompra}
+                        loading={cancelandoCompra}
+                        loadingText="Cancelando..."
+                        disabled={cancelandoCompra}
+                        className="w-full sm:w-auto"
+                    >
+                        Cancelar compra
+                    </Button>
+                )}
+                <DescargarComprobante
+                    codigoComprobante={compra.codigoComprobante}
+                />
+                <Button
+                    variant="outline"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={repetirCompra}
+                    loading={repitiendo}
+                    loadingText="Verificando..."
+                    className="w-full sm:w-auto"
+                >
+                    Repetir compra
+                </Button>
+                {resultadoRepetir && (
+                    <Alert tipo={resultadoRepetir.tipo} texto={resultadoRepetir.texto} className="m-0 flex-1" />
+                )}
+                {resultadoRepetir?.tipo === "success" && (
+                    <Link to="/carrito" className="shrink-0">
+                        <Button variant="primary" size="sm" icon={ShoppingCart}>Ir al carrito</Button>
+                    </Link>
+                )}
+            </div>
+            {mensajeCancelacion && (
+                <Alert tipo={mensajeCancelacion.tipo} texto={mensajeCancelacion.texto} className="mt-3" />
             )}
         </Card>
     );

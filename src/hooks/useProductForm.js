@@ -32,7 +32,9 @@ export function useProductForm(producto, alGuardar) {
             nombre: datos.nombre.trim(),
             descripcion: datos.descripcion?.trim() || undefined,
             precio: Number(datos.precio),
-            stock: Number(datos.stock),
+            // El stock de un producto existente solo se modifica con un
+            // movimiento de inventario, no desde la edicion del producto.
+            ...(producto ? {} : { stock: Number(datos.stock) }),
             categoriaId: datos.categoriaId,
             tipoProductoId: datos.tipoProductoId,
         });

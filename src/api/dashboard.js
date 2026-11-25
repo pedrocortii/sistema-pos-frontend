@@ -1,8 +1,7 @@
-import { listarProductos } from "./productos";
-import { listarStock } from "./stock";
+import { obtenerResumenStockBajo } from "./stock";
 import { listarVentas } from "./ventas";
 
-// El backend valida que page/limit no supere 100 en productos y stock.
+// El backend valida que page/limit no supere 100 en ventas.
 const limiteConsulta = 100;
 
 async function listarTodosLosResultados(listar, parametros, obtenerResultados, obtenerTotal, crearPaginacion) {
@@ -31,14 +30,6 @@ function obtenerTotalVentas(respuesta) {
     return respuesta?.paginacion?.totalRegistros || respuesta?.total || obtenerVentas(respuesta).length;
 }
 
-function obtenerProductos(respuesta) {
-    return respuesta?.data || [];
-}
-
-function obtenerTotalProductos(respuesta) {
-    return respuesta?.total || obtenerProductos(respuesta).length;
-}
-
 function monto(valor) {
     const numero = Number(valor);
     return Number.isFinite(numero) ? numero : 0;
@@ -59,13 +50,14 @@ async function listarVentasDashboard(parametros) {
 }
 
 export async function obtenerResumenDashboard(filtros = {}) {
-    const [ventasRegistradas, productos, stock] = await Promise.all([
+    // El resumen de stock lo calcula el backend con el mismo umbral que usa el
+    // inventario, para que Dashboard y Stock nunca muestren resultados distintos.
+    const [ventasRegistradas, resumenStock] = await Promise.all([
         listarTodosLosResultados(listarVentasDashboard, {
             ...(filtros.fechaDesde && { fechaDesde: filtros.fechaDesde }),
             ...(filtros.fechaHasta && { fechaHasta: filtros.fechaHasta })
         }, obtenerVentas, obtenerTotalVentas, function (pagina) { return { page: pagina, limit: limiteConsulta }; }),
-        listarTodosLosResultados(listarProductos, {}, obtenerProductos, obtenerTotalProductos, function (pagina) { return { page: pagina, limit: limiteConsulta }; }),
-        listarTodosLosResultados(listarStock, {}, obtenerProductos, obtenerTotalProductos, function () { return {}; })
+        obtenerResumenStockBajo()
     ]);
 
     const ventas = ventasRegistradas.filter(function (venta) {
@@ -95,9 +87,10 @@ export async function obtenerResumenDashboard(filtros = {}) {
     return {
         totalVendido,
         cantidadVentas: ventas.length,
-        productosStockBajo: stock.filter(function (producto) { return Number(producto.stockDisponible) <= 5; }),
+        productosStockBajo: resumenStock.productosStockBajo,
+        umbralStockBajo: resumenStock.umbralStockBajo,
         productoMasVendido,
-        totalProductosActivos: productos.length
+        totalProductosActivos: resumenStock.totalProductosActivos
     };
 }
 

@@ -12,6 +12,8 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Alert } from "../components/ui/Alert";
 import { usePeticion } from "../hooks/usePeticion";
+import PrecioProducto from "../components/PrecioProducto";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 
 function obtenerErrorProducto() {
     return "No se pudo cargar el producto.";
@@ -50,11 +52,7 @@ function ProductoDetalle() {
         }
     }
 
-    const stock = producto ? Number(producto.stock) : 0;
-    const stockReservado = producto ? Number(producto.stockReservado || 0) : 0;
-    const stockDisponible = Number.isFinite(stock)
-        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
-        : 0;
+    const stockDisponible = producto ? obtenerDisponibilidadProducto(producto) : 0;
 
     return (
         <div className="min-h-screen bg-paper">
@@ -87,15 +85,12 @@ function ProductoDetalle() {
                         </h1>
 
                         {producto.descripcion && (
-                            <p className="text-ink/70 mt-3 font-sans">
+                            <p className="text-ink/70 mt-3 font-display">
                                 {producto.descripcion}
                             </p>
                         )}
 
-                        <p className="font-mono-ticket text-3xl text-forest font-bold mt-6">
-                            {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-3 text-xl text-ink/45 line-through">${Number(producto.precio).toFixed(2)}</span>}
-                            ${Number(producto.precioFinal ?? producto.precio).toFixed(2)}
-                        </p>
+                        <PrecioProducto producto={producto} className="mt-6 text-3xl" />
 
                         {stockDisponible === 0 ? (
                             <Alert
@@ -124,7 +119,7 @@ function ProductoDetalle() {
 
                                 <Button
                                     onClick={manejarAgregar}
-                                    disabled={cantidad > stockDisponible}
+                                    disabled={cantidad > stockDisponible || Boolean(producto.promocionNoAplicable)}
                                     icon={ShoppingCart}
                                     size="lg"
                                     className="w-full mt-6"

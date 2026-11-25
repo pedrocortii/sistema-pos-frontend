@@ -8,6 +8,8 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Alert } from "../components/ui/Alert";
+import { DescargarComprobante } from "../components/DescargarComprobante";
+import { RetiroProgramado } from "../components/RetiroProgramado";
 import { usePeticion } from "../hooks/usePeticion";
 import { convertirACentavos, formatoMonedaARS, parsearMontoACentavos } from "../utils/moneda";
 
@@ -101,10 +103,15 @@ function AdminVentaDetalle() {
                         <div className="mt-5 border-t border-line pt-4 text-right text-xl text-forest font-bold">
                             Total: ${Number(venta.total).toFixed(2)}
                         </div>
+                        <DescargarComprobante
+                            codigoComprobante={venta.codigoComprobante}
+                            className="mt-4"
+                        />
                     </Card>
 
                     <Card>
                         <CardTitle className="mb-4">Cliente</CardTitle>
+                        <RetiroProgramado venta={venta} className="mb-4 border-b border-line pb-4" />
                         <div className="space-y-2 text-sm">
                             <p className="font-medium">
                                 {venta.clienteNombre
@@ -118,6 +125,14 @@ function AdminVentaDetalle() {
                                 <p className="text-ink/60">DNI: {venta.clienteDni}</p>
                             )}
                         </div>
+
+                        {venta.estado === "REEMBOLSADA" && (
+                            <Alert
+                                tipo="info"
+                                texto="Mercado Pago informó que el pago fue reembolsado."
+                                className="mt-4"
+                            />
+                        )}
 
                         {venta.estado === "PENDIENTE" && (
                             <div className="mt-6 border-t border-line pt-4 space-y-3">

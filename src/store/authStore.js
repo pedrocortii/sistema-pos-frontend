@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { useCarritoStore } from "./carritoStore";
+import { useCarritoStore } from "./carritoStore.js";
 
 function normalizarUsuario(usuario) {
     if (!usuario || typeof usuario !== "object") return usuario;
@@ -33,11 +33,13 @@ export const useAuthStore = create(function (set) {
         usuario: usuarioGuardado ? normalizarUsuario(JSON.parse(usuarioGuardado)) : perfilGuardado,
 
         iniciarSesion: function (token, usuario) {
-            const perfil = normalizarUsuario({ ...(perfilGuardado || {}), ...(usuario || {}) });
+            const perfil = normalizarUsuario({
+                ...(obtenerPerfilGuardado() || {}),
+                ...(usuario || {})
+            });
             localStorage.setItem("token", token);
             localStorage.setItem("usuario", JSON.stringify(perfil));
             localStorage.setItem("clientePerfil", JSON.stringify(perfil));
-            useCarritoStore.getState().vaciarCarrito();
             set({ token: token, usuario: perfil });
         },
 
@@ -53,7 +55,7 @@ export const useAuthStore = create(function (set) {
             localStorage.removeItem("token");
             localStorage.removeItem("usuario");
             localStorage.removeItem("clientePerfil");
-            useCarritoStore.getState().vaciarCarrito();
+            useCarritoStore.getState().limpiarUltimoComprobante();
             set({ token: null, usuario: null });
         }
     };

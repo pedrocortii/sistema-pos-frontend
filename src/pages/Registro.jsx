@@ -5,6 +5,8 @@ import { registrarUsuario } from "../api/usuarios";
 import PanelAuth from "../components/PanelAuth";
 import { usePeticion } from "../hooks/usePeticion";
 import { registroSchema } from "../validations/registroSchema";
+import { useAuth } from "../hooks/useAuth";
+import { useCarritoStore } from "../store/carritoStore";
 
 const valoresIniciales = {
     nombre: "",
@@ -27,6 +29,7 @@ function Registro() {
     const apellidoCompra = datosCompra.apellido || "";
     const dniCompra = datosCompra.dni || "";
     const emailCompra = datosCompra.email || "";
+    const { login } = useAuth();
     const {
         cargando,
         error,
@@ -105,9 +108,14 @@ function Registro() {
                 email: datosRegistro.email,
                 rol: "Cliente"
             }));
-            navegar("/login-cliente", {
-                state: { registroExitoso: true }
-            });
+            const returnTo = datosCompra.returnTo ||
+                (useCarritoStore.getState().items.length > 0 ? "/carrito" : undefined);
+            const resultadoLogin = await login(datosRegistro.email, datosRegistro.contrasena);
+            if (!resultadoLogin.success) {
+                navegar("/login-cliente", {
+                    state: { registroExitoso: true, returnTo: returnTo }
+                });
+            }
         } catch {
             // El hook mantiene el mensaje de error para mostrarlo al usuario.
         }

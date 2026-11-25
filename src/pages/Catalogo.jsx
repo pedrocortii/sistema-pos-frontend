@@ -4,6 +4,7 @@ import { listarProductos } from "../api/productos";
 import { listarPromocionesVigentes } from "../api/promociones";
 import EncabezadoCliente from "../components/EncabezadoCliente";
 import ProductoCatalogoCard from "../components/ProductoCatalogoCard";
+import ComboCatalogoCard from "../components/ComboCatalogoCard";
 import MensajeCarga from "../components/MensajeCarga";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Pagination } from "../components/ui/Pagination";
@@ -25,6 +26,8 @@ function Catalogo() {
     const { respuesta: promocionesRespuesta, cargando: promocionesCargando, ejecutar: ejecutarPromociones } = usePeticion(listarPromocionesVigentes);
     const productos = respuesta?.data || [];
     const categorias = respuesta?.categorias || [];
+    const promociones = promocionesRespuesta?.promociones || [];
+    const combos = promociones.filter((promocion) => promocion.tipoDescuento === "COMBO");
     const hayFiltros = Boolean(busqueda.trim() || categoria);
 
     useEffect(function () {
@@ -117,6 +120,28 @@ function Catalogo() {
                         </select>
                     </div>
                 </div>
+
+                {combos.length > 0 && (
+                    <section className="mb-10">
+                        <PageHeader
+                            etiqueta="Promociones especiales"
+                            titulo="Combos"
+                            descripcion="Elegí un combo para agregar todos sus productos al carrito de una vez."
+                            className="mb-5"
+                        />
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {combos.map(function (combo) {
+                                return (
+                                    <ComboCatalogoCard
+                                        key={combo.id}
+                                        promocion={combo}
+                                        promociones={promociones}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
                 {cargando && <MensajeCarga texto="Cargando productos..." className="my-8" />}
 

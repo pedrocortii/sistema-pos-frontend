@@ -6,6 +6,8 @@ import ImagenProducto from "./ImagenProducto";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
+import PrecioProducto from "./PrecioProducto";
+import { obtenerDisponibilidadProducto } from "../utils/stock";
 
 function ProductoCatalogoCard({ producto }) {
     const agregarProducto = useCarritoStore(function (estado) { return estado.agregarProducto; });
@@ -13,11 +15,7 @@ function ProductoCatalogoCard({ producto }) {
     const [agregado, setAgregado] = useState(false);
     const [avisoStock, setAvisoStock] = useState("");
 
-    const stock = Number(producto.stock);
-    const stockReservado = Number(producto.stockReservado || 0);
-    const stockDisponible = Number.isFinite(stock)
-        ? Math.max(0, stock - (Number.isFinite(stockReservado) ? stockReservado : 0))
-        : 0;
+    const stockDisponible = obtenerDisponibilidadProducto(producto);
     const itemEnCarrito = items.find(function (item) { return item.productoId === producto.id; });
     const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
     const cantidadMaxima = Math.max(0, stockDisponible - cantidadEnCarrito);
@@ -57,10 +55,7 @@ function ProductoCatalogoCard({ producto }) {
             )}
 
             <div className="flex items-center justify-between mt-5">
-                <div className="font-mono-ticket text-lg font-bold">
-                    {Number(producto.precioFinal) < Number(producto.precio) && <span className="mr-2 text-sm text-ink/45 line-through">${Number(producto.precio).toFixed(2)}</span>}
-                    <span className="text-forest">${Number(producto.precioFinal ?? producto.precio).toFixed(2)}</span>
-                </div>
+                <PrecioProducto producto={producto} className="text-lg" />
                 {sinStock && (
                     <Badge variant="danger" size="xs">
                         Sin stock
@@ -85,7 +80,7 @@ function ProductoCatalogoCard({ producto }) {
                 <Button
                     type="button"
                     onClick={manejarAgregar}
-                    disabled={sinStock}
+                    disabled={sinStock || Boolean(producto.promocionNoAplicable)}
                     size="icon-lg"
                     aria-label={agregado ? "Producto agregado al carrito" : "Agregar al carrito"}
                     title={agregado ? "Producto agregado" : "Agregar al carrito"}
@@ -96,6 +91,11 @@ function ProductoCatalogoCard({ producto }) {
             {avisoStock && (
                 <p className="mt-3 font-mono-ticket text-xs text-red-600" role="alert">
                     {avisoStock}
+                </p>
+            )}
+            {producto.promocionNoAplicable && (
+                <p className="mt-3 font-mono-ticket text-xs text-red-600" role="alert">
+                    No se puede agregar mientras la promoción incumpla el precio mínimo.
                 </p>
             )}
         </Card>

@@ -1,9 +1,11 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { useCarritoStore } from "../store/carritoStore";
 import http from "../api/http";
 
 export function useAuth() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { token, usuario, iniciarSesion, cerrarSesion } = useAuthStore();
 
     async function login(email, contrasena) {
@@ -21,7 +23,14 @@ export function useAuth() {
                 Cliente: "/catalogo"
             };
 
-            const destino = destinos[nuevoUsuario.rol] || "/catalogo";
+            const returnTo = location.state?.returnTo;
+            const destino = nuevoUsuario.rol === "Cliente"
+                ? typeof returnTo === "string" && returnTo.startsWith("/") && !returnTo.startsWith("//")
+                    ? returnTo
+                    : useCarritoStore.getState().items.length > 0
+                        ? "/carrito"
+                        : destinos.Cliente
+                : destinos[nuevoUsuario.rol] || "/catalogo";
             navigate(destino);
             return { success: true };
         } catch (error) {
